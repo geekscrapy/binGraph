@@ -148,15 +148,73 @@ def section_ent_line(pebin, filename, block_size=200, smooth=True):
 
 if __name__ == '__main__':
 
-    # filename='bins/aa14c8e777-cape'
-    filename='bins/test.exe'
-    # filename='bins/Locky.bin.mal'
-    filename='bins/Shamoon.bin.mal'
-    # filename='bins/Win32.Sofacy.A.bin.mal'
+    # filename='mal/aa14c8e777-cape'
+    filename='mal/test.exe'
+    # filename='mal/Locky.bin.mal'
+    filename='mal/Shamoon.bin.mal'
+    # filename='mal/Win32.Sofacy.A.bin.mal'
 
     pebin = lief.PE.parse(filename=filename)
 
-    data, layout = section_ent_line(pebin, filename=filename)
+    section_ent_line, layout = section_ent_line(pebin, filename=filename)
+    section_size_bar, layout = section_size_bar(pebin, filename=filename)
+
+    data = [*section_ent_line, *section_size_bar]
+
+    # from https://plot.ly/python/mixed-subplots/#mixed-subplot
+    layout = {
+      "plot_bgcolor": 'black',
+      "paper_bgcolor": 'black',
+      "titlefont": {
+          "size": 20,
+          "family": "Raleway"
+      },
+      "font": {
+          "color": 'white'
+      },
+      "dragmode": "zoom", 
+      "geo3": {
+        "domain": {
+          "x": [0, 0.55], 
+          "y": [0, 0.9]
+        }, 
+        "lakecolor": "rgba(127,205,255,1)",
+        "oceancolor": "rgb(6,66,115)",
+        "landcolor": 'white',
+        "projection": {"type": "orthographic"}, 
+        "scope": "world", 
+        "showlakes": True,
+        "showocean": True,
+        "showland": True,
+        "bgcolor": 'black'
+      }, 
+      "margin": {
+        "r": 10, 
+        "t": 25, 
+        "b": 40, 
+        "l": 60
+      }, 
+      "scene": {"domain": {
+          "x": [0.5, 1], 
+          "y": [0, 0.55]
+        },
+               "xaxis": {"gridcolor": 'white'},
+               "yaxis": {"gridcolor": 'white'},
+               "zaxis": {"gridcolor": 'white'}
+               }, 
+      "showlegend": False, 
+      "title": "<br>Volcano Database", 
+      "xaxis": {
+        "anchor": "y", 
+        "domain": [0.6, 0.95]
+      }, 
+      "yaxis": {
+        "anchor": "x", 
+        "domain": [0.65, 0.95],
+        "showgrid": False
+      }
+    }
+
 
     graph = go.Figure(data=data, layout=layout)
     plot(graph, filename='graph.html')
