@@ -156,66 +156,12 @@ if __name__ == '__main__':
 
     pebin = lief.PE.parse(filename=filename)
 
-    section_ent_line, layout = section_ent_line(pebin, filename=filename)
-    section_size_bar, layout = section_size_bar(pebin, filename=filename)
-
-    data = [*section_ent_line, *section_size_bar]
-
-    # from https://plot.ly/python/mixed-subplots/#mixed-subplot
-    layout = {
-      "plot_bgcolor": 'black',
-      "paper_bgcolor": 'black',
-      "titlefont": {
-          "size": 20,
-          "family": "Raleway"
-      },
-      "font": {
-          "color": 'white'
-      },
-      "dragmode": "zoom", 
-      "geo3": {
-        "domain": {
-          "x": [0, 0.55], 
-          "y": [0, 0.9]
-        }, 
-        "lakecolor": "rgba(127,205,255,1)",
-        "oceancolor": "rgb(6,66,115)",
-        "landcolor": 'white',
-        "projection": {"type": "orthographic"}, 
-        "scope": "world", 
-        "showlakes": True,
-        "showocean": True,
-        "showland": True,
-        "bgcolor": 'black'
-      }, 
-      "margin": {
-        "r": 10, 
-        "t": 25, 
-        "b": 40, 
-        "l": 60
-      }, 
-      "scene": {"domain": {
-          "x": [0.5, 1], 
-          "y": [0, 0.55]
-        },
-               "xaxis": {"gridcolor": 'white'},
-               "yaxis": {"gridcolor": 'white'},
-               "zaxis": {"gridcolor": 'white'}
-               }, 
-      "showlegend": False, 
-      "title": "<br>Volcano Database", 
-      "xaxis": {
-        "anchor": "y", 
-        "domain": [0.6, 0.95]
-      }, 
-      "yaxis": {
-        "anchor": "x", 
-        "domain": [0.65, 0.95],
-        "showgrid": False
-      }
-    }
-
+    data, layout = section_ent_line(pebin, filename=filename)
 
     graph = go.Figure(data=data, layout=layout)
     plot(graph, filename='graph.html')
+
+
+
+
 

@@ -16,7 +16,7 @@ def entropy(labels, base=None):
 # pebin = lief.PE.parse(filename='test.exe')
 # pebin = lief.PE.parse(filename='Locky.bin.mal')
 # pebin = lief.PE.parse(filename='Shamoon.bin.mal')
-pebin = lief.PE.parse(filename='Win32.Sofacy.A.bin.mal')
+pebin = lief.PE.parse(filename='mal/Win32.Sofacy.A.bin.mal')
 
 
 fig = plt.figure()
