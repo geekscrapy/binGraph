@@ -139,14 +139,12 @@ def fix_section_name(section):
 #     return data, layout
 
 
-## Histogram per byte
-def section_byte_occurance_histogram(subplot, pebin, columns=2):
+## Histogram per byte - sorted
+def section_byte_occurance_histogram_sorted(pebin, filename='section_byte_occurance_histogram_sorted.png', figsize=(10,7), ncols=2, sorted=True, ignore_null=True, bins=1, log=1):
 
-    # Split the subplot into the amount of sections we have
-    n_row, n_col = (len(pebin.sections)), 2
-    ax = fig.subplots(nrows=1, ncols=1)
+    fig = plt.figure(figsize=figsize)
+    ignore_null = int(ignore_null)
 
-    y = []
     for i, section in enumerate(pebin.sections):
 
         s_name = fix_section_name(section)
@@ -154,25 +152,68 @@ def section_byte_occurance_histogram(subplot, pebin, columns=2):
 
         row = []
         c = Counter(section.content)
-        for x in range(0, 256):
+        for x in range(ignore_null, 256):
             row.append(c[x])
-        y.append(row)
 
 
-        ax.bar((range(0,256)), y[i], 1, color=s_colour)
 
-    # Customise the subplot
-    # subplot.axis([0,256, 0,9])
-    # subplot.set_title('Section Entropy (sampled @ {:d}): {}'.format(block_size, pebin.name))
-    # subplot.set_xlabel('Sample block')
-    # subplot.set_ylabel('Entropy')
-    # subplot.legend( )
+
+        b = list(zip(list(range(0,256)),row))
+        print(b)
+
+
+
+
+        ax = fig.add_subplot(-(-len(pebin.sections) // ncols),ncols,i+1)
+        ax.bar((range(ignore_null,256)), row, bins, color=s_colour, log=log)
+
+        ax.set_xlabel(s_name)
+
+        # ax.set_title(s_name, fontsize='large')
+        ax.set_xticks([])
+        ax.set_xlim([0, 255])
+
+    fig.suptitle('Byte histogram, per section: {}'.format(pebin.name))
+    fig.subplots_adjust(hspace=0.5)
+    fig.savefig('section_byte_occurance_histogram.png')
+
+
+## Histogram per byte
+def section_byte_occurance_histogram(pebin, filename='section_byte_occurance_histogram.png', figsize=(10,7), ncols=2, sorted=True, ignore_null=True, bins=1, log=1):
+
+    fig = plt.figure(figsize=figsize)
+    ignore_null = int(ignore_null)
+
+    for i, section in enumerate(pebin.sections):
+
+        s_name = fix_section_name(section)
+        s_colour = section_colour(s_name)
+
+        row = []
+        c = Counter(section.content)
+        for x in range(ignore_null, 256):
+            row.append(c[x])
+
+        ax = fig.add_subplot(-(-len(pebin.sections) // ncols),ncols,i+1)
+        ax.bar((range(ignore_null,256)), row, bins, color=s_colour, log=log)
+
+        ax.set_xlabel(s_name)
+
+        # ax.set_title(s_name, fontsize='large')
+        ax.set_xticks([])
+        ax.set_xlim([0, 255])
+
+    fig.suptitle('Byte histogram, per section: {}'.format(pebin.name))
+    fig.subplots_adjust(hspace=0.5)
+    fig.savefig('section_byte_occurance_histogram.png')
 
 
 ## Ent per section
 ## blocksize int:   content is divided into blocks, each block is sampled for shannon entropy. More blocks, greater resolution
 ## trend bool/None: Show a trend line. True: Show trend line, False: Dont show trend line, None: Show ONLY the trend line
-def section_ent_line(subplot, pebin, block_size=75, trend=False):
+def section_ent_line(pebin, filename='section_ent_line.png', figsize=(10,7), block_size=75, trend=False):
+
+    fig = plt.figure(figsize=figsize)
 
     data = []
     for i, section in enumerate(pebin.sections):
@@ -210,47 +251,34 @@ def section_ent_line(subplot, pebin, block_size=75, trend=False):
             x_new = np.linspace(x[0], x[-1], block_size)
             y_new = f(x_new)
 
-            subplot.plot(x_new,y_new, label=s_name, c=s_colour)
+            plt.plot(x_new,y_new, label=s_name, c=s_colour)
 
         if not trend == None:
-            subplot.plot(shannon_samples, label=s_name, c=s_colour)
+            plt.plot(shannon_samples, label=s_name, c=s_colour)
 
-        # Customise the subplot
-        subplot.axis([0,len(shannon_samples), 0,9])
-        subplot.set_title('Section Entropy (sampled @ {:d}): {}'.format(block_size, pebin.name))
-        subplot.set_xlabel('Sample block')
-        subplot.set_ylabel('Entropy')
-        subplot.legend()
+        # Customise the plt
+        plt.axis([0,len(shannon_samples), 0,9])
+        plt.title('Section Entropy (sampled @ {:d}): {}'.format(block_size, pebin.name))
+        plt.xlabel('Sample block')
+        plt.ylabel('Entropy')
+        plt.legend()
 
-    return
-
+    fig.savefig('section_ent_line.png')
 
 if __name__ == '__main__':
 
     # filename='mal/aa14c8e777-cape'
     # filename='mal/test.exe'
     # filename='mal/Locky.bin.mal'
-    filename='mal/Shamoon.bin.mal'
-    # filename='mal/Win32.Sofacy.A.bin.mal'
+    # filename='mal/Shamoon.bin.mal'
+    filename='mal/Win32.Sofacy.A.bin.mal'
+    # filename='upx.exe'
 
     pebin = lief.PE.parse(filename=filename)
 
-
-    fig = plt.figure(figsize=(10,7))
-    ax = fig.subplots(nrows=2, ncols=1)
-
-
-    section_ent_line(ax[0], pebin, block_size=75, trend=False)
-    # section_byte_occurance_histogram(ax[1], pebin)
+    # section_ent_line(pebin, block_size=75, trend=False)
+    section_byte_occurance_histogram_sorted(pebin)
 
    
-    fig.subplots_adjust(hspace=0.3)
-
-    fig.savefig('section_byte_occurance_histogram.png')
-    fig.show()
-
-
-    # sorted hist
-
 
 
