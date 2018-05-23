@@ -148,11 +148,11 @@ def section_ent_line(pebin, filename, block_size=200, smooth=True):
 
 if __name__ == '__main__':
 
-    # filename='bins/aa14c8e777-cape'
-    filename='bins/test.exe'
-    # filename='bins/Locky.bin.mal'
-    filename='bins/Shamoon.bin.mal'
-    # filename='bins/Win32.Sofacy.A.bin.mal'
+    # filename='mal/aa14c8e777-cape'
+    filename='mal/test.exe'
+    # filename='mal/Locky.bin.mal'
+    filename='mal/Shamoon.bin.mal'
+    # filename='mal/Win32.Sofacy.A.bin.mal'
 
     pebin = lief.PE.parse(filename=filename)
 
@@ -160,4 +160,8 @@ if __name__ == '__main__':
 
     graph = go.Figure(data=data, layout=layout)
     plot(graph, filename='graph.html')
+
+
+
+
 
