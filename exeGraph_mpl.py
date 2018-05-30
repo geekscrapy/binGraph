@@ -68,6 +68,16 @@ def fix_section_name(section, index):
             s_name = 'unknown_'+str(index)
         return s_name
 
+# Read files as chunks
+def read_f(fh, chunksize=8192):
+    while True:
+        chunk = fh.read(chunksize)
+        if chunk:
+            yield list(chunk)
+        else:
+            break
+
+
 # ## Ent per section
 def section_ent_line(pebin, block_size=100, trend=False):
     # ## blocksize int:   content is divided into blocks, each block is sampled for shannon entropy. More blocks, greater resolution
@@ -138,6 +148,7 @@ def section_byte_occurance_histogram(pebin, fig, ncols=2, ignore_0=True, bins=1,
     # ## log int:       Amount of 'log' to apply to the graph
     # ## ordered bool:  Add an ordered histogram - show overall distribution
 
+
     ignore_0 = int(ignore_0)
 
     for i, section in enumerate(pebin.sections):
@@ -179,42 +190,50 @@ def section_byte_occurance_histogram(pebin, fig, ncols=2, ignore_0=True, bins=1,
     fig.legend(loc='center left', bbox_to_anchor=(1, 0.5))
 
 
-def file_ent(b_array, pebin=None, block_size=100, trend=False):
-
-    data = b_array
-
-    # Calculate the overall ent throughout the file
-    block_len = -(-len(data) // block_size)
+def file_ent(fh, pebin=None, chunksize=100, ibytes={'0\'s':[0], 'ascii':list(range(128))}, trend=False):
 
     shannon_samples = []
+    byte_ranges = dict.fromkeys(ibytes.keys(),[])
+    byte_ranges = {'0s':[], 'nop':[]}   # THIS WORKS!!
 
-    i = 1
-    prev_end = 0
+    i = 0
+
     prev_ent = 0
-    while prev_end <= len(data):
-
-        block_start = prev_end
-        block_end = i * block_len
-
-        real_ent = shannon_ent(data[ block_start : block_end ])
+    for chunk in read_f(fh, chunksize=chunksize):
 
         # Calculate ent
+        real_ent = shannon_ent(chunk)
         ent = statistics.median([real_ent, prev_ent])
         prev_ent = real_ent
         ent = real_ent
         shannon_samples.append(ent)
 
 
-        prev_end = block_end+1
+        # Calculate percentages of given bytes
+        cbytes = Counter(chunk)
+        for label, b_range in ibytes.items():
+
+            occurance = 0
+            for b in b_range:
+                occurance += cbytes[b]
+
+            byte_ranges[label].append(float(occurance)/float(len(chunk)))   ###### THIS ADDS TO THE WRONG RANGES
+
+        print('******** chunk:{}'.format(i))
         i += 1
+
+    # Draw the graphs
+    zorder=99
 
     label = 'Entropy'
     c = section_colour(label)
-    plt.plot(shannon_samples, label=label, c=c)
+    plt.plot(shannon_samples, label=label, c=c, zorder=zorder, linewidth=0.7)
 
 
-    # Get the section offsets and plot on axis
-    # pebin = lief.PE.parse(filename=filename)
+    for label, percentages in byte_ranges.items():
+        zorder -= zorder
+        c = section_colour(label)
+        plt.plot(percentages, label=label, c=c, zorder=zorder, linewidth=0.7)
 
 
 
@@ -228,93 +247,17 @@ def file_ent(b_array, pebin=None, block_size=100, trend=False):
     plt.legend(loc='center left', bbox_to_anchor=(1, 0.5))
 
 
-
-## Occurance per byte
-# def section_byte_occurance_heatmap(pebin):
-#     z = []
-#     y = []
-#     for section in pebin.sections:
-#         row = []
-#         c = Counter(section.content)
-#         for i in range(0, 256):
-#             row.append(c[i])
-#         z.append(row)
-#         y.append(section.name)
-
-#     data = go.Heatmap(
-#         x=['x{:02}'.format(d) for d in range(0, 256)],
-#         y=y,
-#         z=z,
-#         colorscale='Viridis',
-#     )
-
-#     layout = go.Layout(
-#         title='Byte frequency: {}'.format(filename),
-#         xaxis=dict(
-#             title='Byte: x0 to xFF',
-#             ticktext=['x{:02}'.format(d) for d in range(0, 256, 5)],
-#             tickvals=list(range(0, 256, 5)),
-#             tickangle=45,
-#         ),
-#         yaxis=dict(
-#             title='Binary section',
-#             ticktext=[ s.name for s in pebin.sections ],
-#             tickvals=[ s.name for s in pebin.sections ]
-#         )
-#     )
-
-#     return [data], layout
-
-# ## Section size bar chart
-# def section_size_bar(pebin):
-
-#     section_size_bar_raw = go.Bar(
-#         name='Raw size',
-#         x=[section.name for section in pebin.sections],
-#         y=[section.size for section in pebin.sections]
-#     )
-
-#     section_size_bar_virtual = go.Bar(
-#         name='Virtual size',
-#         x=[section.name for section in pebin.sections],
-#         y=[section.virtual_size for section in pebin.sections]
-#     )
-
-#     data = [section_size_bar_raw, section_size_bar_virtual]
-
-#     layout = go.Layout(
-#         barmode='stack',
-#         title='Raw/virtual section sizes: {}'.format(filename),
-#         xaxis=dict(
-#             title='Sections',
-#             zeroline=False
-#         ),
-#         yaxis=dict(
-#             title='Size',
-#             ticklen=5,
-#             nticks=10,
-#             zeroline=False,
-#             type='log',
-#             autorange=True
-#         )
-#     )
-
-#     return data, layout
-
-
-
-
 if __name__ == '__main__':
 
     # ## Input file
     # filename='mal/aa14c8e777-cape'
     # filename='mal/test.exe'
     # filename='mal/Locky.bin.mal'
-    # filename='mal/Shamoon.bin.mal'
+    filename='mal/Shamoon.bin.mal'
     # filename='mal/Win32.Sofacy.A.bin.mal'
     # filename='mal/upxed.exe'
-    filename='mal/cape-9480-d746baede2c7'
-    filename='mal/cape-9472-d69be688e'
+    # filename='mal/cape-9480-d746baede2c7'
+    # filename='mal/cape-9472-d69be688e'
 
 
 
@@ -324,22 +267,25 @@ if __name__ == '__main__':
     fsize = (12,4) # Width, Height
 
 
-    pebin = lief.PE.parse(filename=filename)
 
-
+    # pebin = lief.parse(filepath=filename)
     # plt.figure(figsize=fsize)
     # section_ent_line(pebin, block_size=50, trend=False)
     # plt.savefig(fname='section_ent_line-50.{}'.format(fmt), format=fmt, bbox_inches='tight')
 
 
+
+    # pebin = lief.parse(filepath=filename)
     # fig = plt.figure(figsize=fsize)
     # section_byte_occurance_histogram(pebin, fig, ncols=3, ignore_0=True, bins=1, log=0, ordered=True)
     # fig.savefig(fname='section_byte_occurance_histogram.{}'.format(fmt), format=fmt, bbox_inches='tight')
 
 
 
+
+    fh = open(filename, "rb")
     fig = plt.figure(figsize=fsize)
-    file_ent(b_array=list(open(filename, "rb").read()), block_size=750, trend=False)
+    file_ent(fh=fh, chunksize=1000, ibytes={'0s':[0],'nop':[144]}, trend=False)
     plt.savefig(fname='file_ent.{}'.format(fmt), format=fmt, bbox_inches='tight')
 
 
