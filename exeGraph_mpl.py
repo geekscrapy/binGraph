@@ -19,7 +19,7 @@ from math import log, e
 import math
 import hashlib
 import statistics
-
+import os
 
 
 ## Helper functions
@@ -190,10 +190,18 @@ def section_byte_occurance_histogram(pebin, fig, ncols=2, ignore_0=True, bins=1,
     fig.legend(loc='center left', bbox_to_anchor=(1, 0.5))
 
 
-def file_ent(fh, pebin=None, chunksize=100, ibytes={'0\'s':[0], 'ascii':list(range(0,128)), 'exploit':[44,144]}, trend=False):
+
+def file_ent(filename, figsize=(12,4), chunks=750, ibytes={'0\'s':[0], 'ascii':list(range(0,128)), 'exploit':[44,144]}):
+
+    fh = open(filename, "rb")
+
+    # Calculate the overall chunksize 
+    fs = os.fstat(fh.fileno()).st_size
+    chunksize = -(-fs // chunks)
 
     shannon_samples = []
     byte_ranges = {key: [] for key in ibytes.keys()}
+
 
     prev_ent = 0
     for chunk in read_f(fh, chunksize=chunksize):
@@ -220,18 +228,38 @@ def file_ent(fh, pebin=None, chunksize=100, ibytes={'0\'s':[0], 'ascii':list(ran
     # Draw the graphs in order
     zorder=99
 
+    fig, ax = plt.subplots(figsize=figsize)
+
+
     label = 'Entropy'
     c = section_colour(label)
-    plt.plot(shannon_samples, label=label, c=c, zorder=zorder, linewidth=0.7)
+    ax.plot(shannon_samples, label=label, c=c, zorder=zorder, linewidth=0.7)
 
     for label, percentages in byte_ranges.items():
         zorder -= zorder
         c = section_colour(label)
-        plt.plot(percentages, label=label, c=c, zorder=zorder, linewidth=0.7)
+        ax.plot(percentages, label=label, c=c, zorder=zorder, linewidth=0.7)
+
+
+    # exebin = lief.PE.parse(filename=filename)
+    # if type(exebin) == lief.PE.Binary:
+
+    #     # entrypoint pointer and line
+    #     ep = exebin.entrypoint
+    #     ep_x = -(-ep // fs)
+
+    #     ax.annotate('EP', xy=(ep_x, 1), xytext=(ep_x, 1.08),
+    #         arrowprops=dict(facecolor='black', shrink=0.1),
+    #     )
+
+
+    # else:
+    #     print('not_pe')
+
+
 
     # Customise the plt
     plt.axis([0,len(shannon_samples)-1, 0,1])
-    # plt.title('Section Entropy (sampled @ {:d}): {}'.format(block_size, pebin.name))
     plt.xlabel('Raw offset')
     plt.ylabel('Entropy')
 
@@ -241,15 +269,15 @@ def file_ent(fh, pebin=None, chunksize=100, ibytes={'0\'s':[0], 'ascii':list(ran
 if __name__ == '__main__':
 
     # ## Input file
-    filename='mal/aa14c8e777-cape'
-    filename='mal/test.exe'
-    filename='mal/Locky.bin.mal'
-    # filename='mal/Shamoon.bin.mal'
+    # filename='mal/aa14c8e777-cape'
+    # filename='mal/test.exe'
+    # filename='mal/Locky.bin.mal'
+    filename='mal/Shamoon.bin.mal'
     # filename='mal/Win32.Sofacy.A.bin.mal'
     # filename='mal/upxed.exe'
     # filename='mal/cape-9480-d746baede2c7'
     # filename='mal/cape-9472-d69be688e'
-
+    # filename='/bin/bash'
 
 
 
@@ -274,9 +302,8 @@ if __name__ == '__main__':
 
 
 
-    fh = open(filename, "rb")
-    fig = plt.figure(figsize=fsize)
-    file_ent(fh=fh, chunksize=1000, trend=False)
+    
+    file_ent(filename=filename, figsize=fsize)
     plt.savefig(fname='file_ent.{}'.format(fmt), format=fmt, bbox_inches='tight')
 
     plt.show()
