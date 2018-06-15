@@ -7,4 +7,6 @@ exeGraph
  if pe:
    section lines
    section arrows
-   virtual filesize on top​exeGraph
+   virtual filesize on top exeGraph
+
+use twinx and twiny for creating additional scales
