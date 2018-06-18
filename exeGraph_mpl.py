@@ -69,7 +69,7 @@ def fix_section_name(section, index):
         return s_name
 
 # Read files as chunks
-def read_f(fh, chunksize=8192):
+def get_chunk(fh, chunksize=8192):
     while True:
         chunk = fh.read(chunksize)
         if chunk:
@@ -190,13 +190,13 @@ def section_byte_occurance_histogram(pebin, fig, ncols=2, ignore_0=True, bins=1,
     fig.legend(loc='center left', bbox_to_anchor=(1, 0.5))
 
 
-def file_ent(fh, pebin=None, chunksize=100, ibytes={'0\'s':[0], 'ascii':list(range(0,128)), 'exploit':[44,144]}, trend=False):
+def file_ent(fh, chunksize=100, ibytes={'0\'s':[0], 'printable':list(range(32,127)), 'exploit':[44,144]}, trend=False):
 
     shannon_samples = []
     byte_ranges = {key: [] for key in ibytes.keys()}
 
     prev_ent = 0
-    for chunk in read_f(fh, chunksize=chunksize):
+    for chunk in get_chunk(fh, chunksize=chunksize):
 
         # Calculate ent
         real_ent = shannon_ent(chunk)
@@ -204,7 +204,6 @@ def file_ent(fh, pebin=None, chunksize=100, ibytes={'0\'s':[0], 'ascii':list(ran
         prev_ent = real_ent
         ent = real_ent
         shannon_samples.append(ent)
-
 
         # Calculate percentages of given bytes
         cbytes = Counter(chunk)
@@ -217,6 +216,7 @@ def file_ent(fh, pebin=None, chunksize=100, ibytes={'0\'s':[0], 'ascii':list(ran
             byte_ranges[label].append(float(occurance)/float(len(chunk)))
 
 
+
     # Draw the graphs in order
     zorder=99
 
@@ -224,10 +224,12 @@ def file_ent(fh, pebin=None, chunksize=100, ibytes={'0\'s':[0], 'ascii':list(ran
     c = section_colour(label)
     plt.plot(shannon_samples, label=label, c=c, zorder=zorder, linewidth=0.7)
 
+
     for label, percentages in byte_ranges.items():
         zorder -= zorder
         c = section_colour(label)
         plt.plot(percentages, label=label, c=c, zorder=zorder, linewidth=0.7)
+
 
     # Customise the plt
     plt.axis([0,len(shannon_samples)-1, 0,1])
@@ -241,10 +243,10 @@ def file_ent(fh, pebin=None, chunksize=100, ibytes={'0\'s':[0], 'ascii':list(ran
 if __name__ == '__main__':
 
     # ## Input file
-    filename='mal/aa14c8e777-cape'
-    filename='mal/test.exe'
-    filename='mal/Locky.bin.mal'
-    # filename='mal/Shamoon.bin.mal'
+    # filename='mal/aa14c8e777-cape'
+    # filename='mal/test.exe'
+    # filename='mal/Locky.bin.mal'
+    filename='mal/Shamoon.bin.mal'
     # filename='mal/Win32.Sofacy.A.bin.mal'
     # filename='mal/upxed.exe'
     # filename='mal/cape-9480-d746baede2c7'
@@ -274,8 +276,9 @@ if __name__ == '__main__':
 
 
 
-    fh = open(filename, "rb")
     fig = plt.figure(figsize=fsize)
+
+    fh = open(filename, "rb")
     file_ent(fh=fh, chunksize=1000, trend=False)
     plt.savefig(fname='file_ent.{}'.format(fmt), format=fmt, bbox_inches='tight')
 
