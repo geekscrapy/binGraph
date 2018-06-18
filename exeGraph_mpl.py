@@ -19,7 +19,7 @@ from math import log, e
 import math
 import hashlib
 import statistics
-import os
+import os, re
 
 
 ## Helper functions
@@ -190,17 +190,32 @@ def section_byte_occurance_histogram(pebin, fig, ncols=2, ignore_0=True, bins=1,
     fig.legend(loc='center left', bbox_to_anchor=(1, 0.5))
 
 
+# ## Entropy and byte occurance analysis
+# binname: file to load and analyse
+# figsize: specify size of the figure ouputted
+# frmt: output filetype. Can be anything supported by matplotlib - png, svg, jpg
+# figname: filename to save graph
+# figsize: size to save figure, (width,height)
+# chunks: how many chunks to split the file over. Smaller chunks give a more averaged graph, a larger number of chunks give more detail
+# ibytes: a dict of interesting bytes wanting to be displayed on the graph. These can often show relationships and reason for dips or
+#         increases in entropy at particular points. Bytes within each type are defined as lists of _decimals_, _not_ hex.
+def file_ent(binname, frmt='png', figname=None, figsize=(12,4), chunks=750, ibytes={'0\'s':[0], 'Printable':list(range(0,128)), 'Exploit':[44,144]}):
 
-def file_ent(filename, figsize=(12,4), chunks=750, ibytes={'0\'s':[0], 'ascii':list(range(0,128)), 'exploit':[44,144]}):
+    if not figname:
+        clean_binname = ''.join([c for c in binname if re.match(r'[\w\_\-\.]', c)])
+        figname = 'file_ent-{}.{}'.format(clean_binname, frmt)
 
-    fh = open(filename, "rb")
+    fh = open(binname, 'rb')
 
     # Calculate the overall chunksize 
     fs = os.fstat(fh.fileno()).st_size
     chunksize = -(-fs // chunks)
 
     shannon_samples = []
-    byte_ranges = {key: [] for key in ibytes.keys()}
+
+    # Create byte occurance dict if required
+    if len(ibytes) > 0:
+        byte_ranges = {key: [] for key in ibytes.keys()}
 
 
     prev_ent = 0
@@ -213,67 +228,87 @@ def file_ent(filename, figsize=(12,4), chunks=750, ibytes={'0\'s':[0], 'ascii':l
         ent = real_ent
         shannon_samples.append(ent)
 
-        # Calculate percentages of given bytes
-        cbytes = Counter(chunk)
-        for label, b_range in ibytes.items():
+        # Calculate percentages of given bytes, if provided
+        if len(ibytes) > 0:
+            cbytes = Counter(chunk)
+            for label, b_range in ibytes.items():
 
-            occurance = 0
-            for b in b_range:
-                occurance += cbytes[b]
+                occurance = 0
+                for b in b_range:
+                    occurance += cbytes[b]
 
-            byte_ranges[label].append(float(occurance)/float(len(chunk)))
+                byte_ranges[label].append((float(occurance)/float(len(chunk)))*100)
 
 
 
     # Draw the graphs in order
     zorder=99
 
-    fig, ax = plt.subplots(figsize=figsize)
-
+    fig, axEnt = plt.subplots(figsize=figsize)
 
     label = 'Entropy'
     c = section_colour(label)
-    ax.plot(shannon_samples, label=label, c=c, zorder=zorder, linewidth=0.7)
+    axEnt.plot(shannon_samples, label=label, c=c, zorder=zorder, linewidth=0.7)
+    axEnt.set_xlim([0,len(shannon_samples)-1])
+    axEnt.set_ylim([0, 1.1])
+    axEnt.set_ylabel('Entropy')
+
+    # Set the bin raw size axes
+    axBinRaw = axEnt.twiny()
+    axBinRaw.set_xlabel('Raw size')
+    axBinRaw.set_xticks(list(range(200,300, 20)))
 
 
-    for label, percentages in byte_ranges.items():
-        zorder -= zorder
-        c = section_colour(label)
-        ax.plot(percentages, label=label, c=c, zorder=zorder, linewidth=0.7)
+    # Plot the individual byte percents
+    if len(ibytes) > 0:
+        axBytePc = axEnt.twinx()
+        axBytePc.set_ylim([0, 101])
+        axBytePc.set_ylabel('Occurance of bytes (%)')
+
+        for label, percentages in byte_ranges.items():
+            zorder -= zorder
+            c = section_colour(label)
+            axBytePc.plot(percentages, label=label, c=c, zorder=zorder, linewidth=0.7)
 
 
-    # exebin = lief.PE.parse(filename=filename)
-    # if type(exebin) == lief.PE.Binary:
+    exebin = lief.parse(filepath=filename)
+    if type(exebin) == lief.PE.Binary:
 
-    #     # entrypoint pointer and line
-    #     ep = exebin.entrypoint
-    #     ep_x = -(-ep // fs)
+        axPEvirt = axEnt.twiny()
+        axPEvirt.set_xlabel('Virtual size')
 
-    #     ax.annotate('EP', xy=(ep_x, 1), xytext=(ep_x, 1.08),
-    #         arrowprops=dict(facecolor='black', shrink=0.1),
-    #     )
+        # # entrypoint pointer and line
+        # ep = exebin.entrypoint
+        # ep_x = -(-ep // fs)
+
+        # ax.annotate('EP', xy=(ep_x, 1), xytext=(ep_x, 1.08),
+        #     arrowprops=dict(facecolor='black', shrink=0.1),
+        # )
 
 
-    # else:
-    #     print('not_pe')
+    else:
+        print('not_pe')
 
 
 
     # Customise the plt
-    plt.axis([0,len(shannon_samples)-1, 0,1])
-    plt.xlabel('Raw offset')
-    plt.ylabel('Entropy')
+    # plt.axis([0,len(shannon_samples)-1, 0,1])
+    # plt.xlabel('Raw offset')
+    # plt.ylabel('Entropy')
 
-    plt.legend(loc='center left', bbox_to_anchor=(1, 0.5))
+    # plt.legend(loc='center left', bbox_to_anchor=(1, 0.5))
+
+
+    plt.savefig(fname=figname, format=frmt, bbox_inches='tight')
 
 
 if __name__ == '__main__':
 
     # ## Input file
-    # filename='mal/aa14c8e777-cape'
+    filename='mal/aa14c8e777-cape'
     # filename='mal/test.exe'
     # filename='mal/Locky.bin.mal'
-    filename='mal/Shamoon.bin.mal'
+    # filename='mal/Shamoon-bin.mal'
     # filename='mal/Win32.Sofacy.A.bin.mal'
     # filename='mal/upxed.exe'
     # filename='mal/cape-9480-d746baede2c7'
@@ -302,9 +337,6 @@ if __name__ == '__main__':
 
 
 
-
-    
-    file_ent(filename=filename, figsize=fsize)
-    plt.savefig(fname='file_ent.{}'.format(fmt), format=fmt, bbox_inches='tight')
+    file_ent(binname=filename)
 
     plt.show()
