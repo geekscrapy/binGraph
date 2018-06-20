@@ -45,7 +45,6 @@ def section_colour(text, multi=False):
     else:
         return colour_main
 
-
 # Some samples may have a corrupt section name (e.g. 206c0533ce9bf83ecdf904bec2f3532d)
 def fix_section_name(section, index):
         s_name = section.name
@@ -61,7 +60,6 @@ def get_chunk(fh, chunksize=8192):
             yield list(chunk)
         else:
             break
-
 
 # ## Ent per section
 def section_ent_line(pebin, block_size=100, trend=False):
@@ -174,7 +172,6 @@ def section_byte_occurance_histogram(pebin, fig, ncols=2, ignore_0=True, bins=1,
 
     fig.legend(loc='center left', bbox_to_anchor=(1, 0.5))
 
-
 # ## Entropy and byte occurance analysis
 # binname: file to load and analyse
 # figsize: specify size of the figure ouputted
@@ -192,13 +189,13 @@ def file_ent(binname, frmt='png', figname=None, figsize=(12,4), chunks=750, ibyt
 
     fh = open(binname, 'rb')
 
-    # Calculate the overall chunksize 
+    # # Calculate the overall chunksize 
     fs = os.fstat(fh.fileno()).st_size
     chunksize = -(-fs // chunks)
 
     shannon_samples = []
 
-    # Create byte occurance dict if required
+    # # Create byte occurance dict if required
     if len(ibytes) > 0:
         byte_ranges = {key: [] for key in ibytes.keys()}
 
@@ -206,14 +203,14 @@ def file_ent(binname, frmt='png', figname=None, figsize=(12,4), chunks=750, ibyt
     prev_ent = 0
     for chunk in get_chunk(fh, chunksize=chunksize):
 
-        # Calculate ent
+        # # Calculate ent
         real_ent = shannon_ent(chunk)
         ent = statistics.median([real_ent, prev_ent])
         prev_ent = real_ent
         ent = real_ent
         shannon_samples.append(ent)
 
-        # Calculate percentages of given bytes, if provided
+        # # Calculate percentages of given bytes, if provided
         if len(ibytes) > 0:
             cbytes = Counter(chunk)
             for label, b_range in ibytes.items():
@@ -226,7 +223,7 @@ def file_ent(binname, frmt='png', figname=None, figsize=(12,4), chunks=750, ibyt
 
 
 
-    # Draw the graphs in order
+    # # Draw the graphs in order
     zorder=99
 
     fig, axEnt = plt.subplots(figsize=figsize)
@@ -240,7 +237,7 @@ def file_ent(binname, frmt='png', figname=None, figsize=(12,4), chunks=750, ibyt
     axEnt.set_xlabel('File (raw) offset')
     axEnt.xaxis.set_major_formatter(ticker.FuncFormatter(lambda x, pos: ('0x%x') % (int(chunksize * x))))
 
-    # Plot the individual byte percents
+    # # Plot the individual byte percents
     if len(ibytes) > 0:
         axBytePc = axEnt.twinx()
         axBytePc.set_ylim([0, 101])
@@ -253,37 +250,39 @@ def file_ent(binname, frmt='png', figname=None, figsize=(12,4), chunks=750, ibyt
             axBytePc.plot(percentages, label=label, c=c, zorder=zorder, linewidth=0.7)
 
 
-    # Filetype specific additions
-    exebin = lief.parse(filepath=filename)
+    # # Filetype specific additions
+    try:
+        exebin = lief.parse(filepath=filename)
+    except Exception as e:
+        exebin = None
+
     if type(exebin) == lief.PE.Binary:
 
-        # Set the virtual size axis
-        axPEvirt = axEnt.twiny()
-        axPEvirt.set_xlim([0,exebin.virtual_size+0x0400000])
-        axPEvirt.set_xlabel('Base address (virtual)')
-        axPEvirt.xaxis.set_major_formatter(ticker.FuncFormatter(lambda x, pos: ('0x%x') % (int(x+0x0400000))))
+        # # Entrypoint (EP) pointer and vline
+        v_ep = exebin.optional_header.addressof_entrypoint/chunksize
+        axEnt.axvline(x=v_ep, linestyle='--', c='r')
+        axEnt.text(x=v_ep, y=1.05, s='EP', rotation=90)
+
+        # # Section vlines
+        for section in exebin.sections:
+            raw_section_offset = section.pointerto_raw_data/chunksize
+            axEnt.axvline(x=raw_section_offset, label=section.name, linestyle='--')
+            axEnt.text(x=raw_section_offset, y=1.05, s=section.name, rotation=90)
 
 
-    #     # # entrypoint pointer and line
-    #     ep = exebin.entrypoint
-    #     ep_x = -(-ep // exebin.virtual_size)
-
-    #     axEnt.axvline(x=exebin.virtual_size/750, linestyle='--', c=section_colour('EP'))
-    #     axEnt.text(x=exebin.virtual_size/750, y=1.05, s='EP', rotation=90)
-
-
-    #     for section in exebin.sections:
-
-    #         axEnt.axvline(x=section.pointerto_raw_data/750, label=section.name, linestyle='--')
-    #         axEnt.text(x=section.pointerto_raw_data/750, y=1.05, s=section.name, rotation=90)
+        # # Set the virtual size axis
+        # axPEvirt = axEnt.twiny()
+        # axPEvirt.set_xlim([exebin.optional_header.imagebase, exebin.optional_header.imagebase+exebin.optional_header.sizeof_image])
+        # axPEvirt.set_xlabel('Base address (virtual)')
+        # axPEvirt.xaxis.set_major_formatter(ticker.FuncFormatter(lambda x, pos: ('0x%x') % (int(x))))
 
 
     else:
-        print('not_pe')
+        pass # NOT PE
 
 
 
-    # Customise the plt
+    # # Customise the plt
     # plt.axis([0,len(shannon_samples)-1, 0,1])
     # plt.xlabel('Raw offset')
     # plt.ylabel('Entropy')
@@ -292,7 +291,7 @@ def file_ent(binname, frmt='png', figname=None, figsize=(12,4), chunks=750, ibyt
 
 
     logo = plt.imread('cape.png')
-    fig.figimage(logo, 1020, 350, alpha=.5, zorder=99)
+    fig.figimage(logo, alpha=.5, zorder=99)
 
     plt.savefig(fname=figname, format=frmt, bbox_inches='tight')
 
@@ -300,15 +299,17 @@ def file_ent(binname, frmt='png', figname=None, figsize=(12,4), chunks=750, ibyt
 if __name__ == '__main__':
 
     # ## Input file
-    filename='mal/aa14c8e777-cape'
+    # filename='mal/aa14c8e777-cape'
     # filename='mal/test.exe'
     # filename='mal/Locky.bin.mal'
     # filename='mal/Shamoon-bin.mal'
     # filename='mal/Win32.Sofacy.A.bin.mal'
-    # filename='mal/upxed.exe'
+    filename='mal/upxed.exe'
     # filename='mal/cape-9480-d746baede2c7'
     filename='mal/cape-9472-d69be688e'
-    # filename='/bin/bash'
+    filename='/bin/bash'
+    # filename='mal/bytehist.exe'
+    # filename='section_byte_occurance_histogram.png'
 
 
 
@@ -332,6 +333,5 @@ if __name__ == '__main__':
 
 
 
-    file_ent(binname=filename)
-
+    file_ent(binname=filename, ibytes=[])
     plt.show()
