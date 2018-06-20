@@ -10,6 +10,7 @@ import lief
 
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
+import matplotlib.ticker as ticker
 from matplotlib import colors
 from scipy.stats import entropy
 
@@ -44,22 +45,6 @@ def section_colour(text, multi=False):
     else:
         return colour_main
 
-    ## Other colour schemes
-
-    # name_colour = int('4'+hashlib.md5(text.encode('utf-8')).hexdigest()[:4], base=16)
-    # np.random.seed(int(name_colour))
-    # colour = np.random.rand(3,)
-    # return colour
-
-    # name_colour = int('1'+hashlib.md5(text.encode('utf-8')).hexdigest()[:4], base=16)
-    # np.random.seed(int(name_colour))
-    # colour = np.random.rand(3,)
-    # return colour
-
-    # name_colour = int(hashlib.md5(text.encode('utf-8')).hexdigest()[:4], base=16)
-    # np.random.seed(int(name_colour*255))
-    # colour = np.random.rand(3,)
-    # return colour
 
 # Some samples may have a corrupt section name (e.g. 206c0533ce9bf83ecdf904bec2f3532d)
 def fix_section_name(section, index):
@@ -252,18 +237,15 @@ def file_ent(binname, frmt='png', figname=None, figsize=(12,4), chunks=750, ibyt
     axEnt.set_xlim([0,len(shannon_samples)-1])
     axEnt.set_ylim([0, 1.1])
     axEnt.set_ylabel('Entropy')
-
-    # Set the bin raw size axes
-    axBinRaw = axEnt.twiny()
-    axBinRaw.set_xlabel('Raw size')
-    axBinRaw.set_xticks(list(range(200,300, 20)))
-
+    axEnt.set_xlabel('File (raw) offset')
+    axEnt.xaxis.set_major_formatter(ticker.FuncFormatter(lambda x, pos: ('0x%x') % (int(chunksize * x))))
 
     # Plot the individual byte percents
     if len(ibytes) > 0:
         axBytePc = axEnt.twinx()
         axBytePc.set_ylim([0, 101])
         axBytePc.set_ylabel('Occurance of bytes (%)')
+        axBytePc.yaxis.set_major_formatter(ticker.FuncFormatter(lambda x, pos: ('%i%%') % (x)))
 
         for label, percentages in byte_ranges.items():
             zorder -= zorder
@@ -271,19 +253,29 @@ def file_ent(binname, frmt='png', figname=None, figsize=(12,4), chunks=750, ibyt
             axBytePc.plot(percentages, label=label, c=c, zorder=zorder, linewidth=0.7)
 
 
-    exebin = lief.parse(filepath=filename)
-    if type(exebin) == lief.PE.Binary:
+    # Filetype specific additions
+    # exebin = lief.parse(filepath=filename)
+    # if type(exebin) == lief.PE.Binary:
 
-        axPEvirt = axEnt.twiny()
-        axPEvirt.set_xlabel('Virtual size')
+    #     # Set the virtual size axis
+    #     axPEvirt = axEnt.twiny()
+    #     axPEvirt.set_xlim([0,exebin.virtual_size+0x0400000])
+    #     axPEvirt.set_xlabel('Base address (virtual)')
+    #     axPEvirt.xaxis.set_major_formatter(ticker.FuncFormatter(lambda x, pos: ('0x%x') % (int(x+0x0400000))))
 
-        # # entrypoint pointer and line
-        # ep = exebin.entrypoint
-        # ep_x = -(-ep // fs)
 
-        # ax.annotate('EP', xy=(ep_x, 1), xytext=(ep_x, 1.08),
-        #     arrowprops=dict(facecolor='black', shrink=0.1),
-        # )
+    #     # # entrypoint pointer and line
+    #     ep = exebin.entrypoint
+    #     ep_x = -(-ep // exebin.virtual_size)
+
+    #     axEnt.axvline(x=exebin.virtual_size/750, linestyle='--', c=section_colour('EP'))
+    #     axEnt.text(x=exebin.virtual_size/750, y=1.05, s='EP', rotation=90)
+
+
+    #     for section in exebin.sections:
+
+    #         axEnt.axvline(x=section.pointerto_raw_data/750, label=section.name, linestyle='--')
+    #         axEnt.text(x=section.pointerto_raw_data/750, y=1.05, s=section.name, rotation=90)
 
 
     else:
@@ -299,6 +291,9 @@ def file_ent(binname, frmt='png', figname=None, figsize=(12,4), chunks=750, ibyt
     # plt.legend(loc='center left', bbox_to_anchor=(1, 0.5))
 
 
+    logo = plt.imread('cape.png')
+    fig.figimage(logo, 1020, 350, alpha=.5, zorder=99)
+
     plt.savefig(fname=figname, format=frmt, bbox_inches='tight')
 
 
@@ -312,7 +307,7 @@ if __name__ == '__main__':
     # filename='mal/Win32.Sofacy.A.bin.mal'
     # filename='mal/upxed.exe'
     # filename='mal/cape-9480-d746baede2c7'
-    # filename='mal/cape-9472-d69be688e'
+    filename='mal/cape-9472-d69be688e'
     # filename='/bin/bash'
 
 
