@@ -254,14 +254,14 @@ def file_ent(binname, frmt='png', figname=None, figsize=(12,4), chunks=750, ibyt
 
 
     # Filetype specific additions
-    # exebin = lief.parse(filepath=filename)
-    # if type(exebin) == lief.PE.Binary:
+    exebin = lief.parse(filepath=filename)
+    if type(exebin) == lief.PE.Binary:
 
-    #     # Set the virtual size axis
-    #     axPEvirt = axEnt.twiny()
-    #     axPEvirt.set_xlim([0,exebin.virtual_size+0x0400000])
-    #     axPEvirt.set_xlabel('Base address (virtual)')
-    #     axPEvirt.xaxis.set_major_formatter(ticker.FuncFormatter(lambda x, pos: ('0x%x') % (int(x+0x0400000))))
+        # Set the virtual size axis
+        axPEvirt = axEnt.twiny()
+        axPEvirt.set_xlim([0,exebin.virtual_size+0x0400000])
+        axPEvirt.set_xlabel('Base address (virtual)')
+        axPEvirt.xaxis.set_major_formatter(ticker.FuncFormatter(lambda x, pos: ('0x%x') % (int(x+0x0400000))))
 
 
     #     # # entrypoint pointer and line
