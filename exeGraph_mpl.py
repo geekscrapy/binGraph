@@ -261,13 +261,13 @@ def file_ent(binname, frmt='png', figname=None, figsize=(12,4), chunks=750, ibyt
         # # Entrypoint (EP) pointer and vline
         v_ep = exebin.optional_header.addressof_entrypoint/chunksize
         axEnt.axvline(x=v_ep, linestyle='--', c='r')
-        axEnt.text(x=v_ep, y=1.05, s='EP', rotation=90)
+        axEnt.text(x=v_ep, y=1.12, s='EP', rotation=90, verticalalignment='bottom', horizontalalignment='center')
 
         # # Section vlines
         for section in exebin.sections:
             raw_section_offset = section.pointerto_raw_data/chunksize
-            axEnt.axvline(x=raw_section_offset, label=section.name, linestyle='--')
-            axEnt.text(x=raw_section_offset, y=1.05, s=section.name, rotation=90)
+            axEnt.axvline(x=raw_section_offset, linestyle='--')
+            axEnt.text(x=raw_section_offset, y=1.12, s=section.name, rotation=90, verticalalignment='bottom', horizontalalignment='center')
 
 
         # # Set the virtual size axis
@@ -282,12 +282,14 @@ def file_ent(binname, frmt='png', figname=None, figsize=(12,4), chunks=750, ibyt
 
 
 
-    # # Customise the plt
-    # plt.axis([0,len(shannon_samples)-1, 0,1])
-    # plt.xlabel('Raw offset')
-    # plt.ylabel('Entropy')
+    # # Add legends
+    if len(ibytes) > 0:
+        axEnt.legend(loc=(1.1, 0.9))
+    else:
+        axEnt.legend(loc=(1.02, 0.9))
 
-    # plt.legend(loc='center left', bbox_to_anchor=(1, 0.5))
+    if len(ibytes) > 0:
+        axBytePc.legend(loc=(1.1, 0.5))
 
 
     logo = plt.imread('cape.png')
@@ -299,15 +301,15 @@ def file_ent(binname, frmt='png', figname=None, figsize=(12,4), chunks=750, ibyt
 if __name__ == '__main__':
 
     # ## Input file
-    filename='mal/aa14c8e777-cape'
+    # filename='mal/aa14c8e777-cape'
     # filename='mal/test.exe'
     # filename='mal/Locky.bin.mal'
     # filename='mal/Shamoon-bin.mal'
     # filename='mal/Win32.Sofacy.A.bin.mal'
-    filename='mal/upxed.exe'
+    # filename='mal/upxed.exe'
     # filename='mal/cape-9480-d746baede2c7'
     filename='mal/cape-9472-d69be688e'
-    filename='/bin/bash'
+    # filename='/bin/bash'
     # filename='mal/bytehist.exe'
     # filename='section_byte_occurance_histogram.png'
 
