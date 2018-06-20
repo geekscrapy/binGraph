@@ -299,7 +299,7 @@ def file_ent(binname, frmt='png', figname=None, figsize=(12,4), chunks=750, ibyt
 if __name__ == '__main__':
 
     # ## Input file
-    # filename='mal/aa14c8e777-cape'
+    filename='mal/aa14c8e777-cape'
     # filename='mal/test.exe'
     # filename='mal/Locky.bin.mal'
     # filename='mal/Shamoon-bin.mal'
