@@ -187,7 +187,6 @@ def file_ent(binname, frmt='png', figname=None, figsize=(12,4), figdpi=100, chun
         clean_binname = ''.join([c for c in binname if re.match(r'[\w\_\-\.]', c)])
         figname = 'file_ent-{}.{}'.format(clean_binname, frmt)
 
-
     fh = open(binname, 'rb')
 
     # # Calculate the overall chunksize 
@@ -239,9 +238,9 @@ def file_ent(binname, frmt='png', figname=None, figsize=(12,4), figdpi=100, chun
     host.set_ylim([0, 1.05])
     host.plot(shannon_samples, label=label, c=c, zorder=zorder, linewidth=0.7)
     host.set_ylabel('Entropy\n(sampled over {} byte chunks)\n'.format(chunksize))
+    host.set_xlabel('Raw file offset')
 
-    # # Set the xaxis to non-visible so we can work with _real_ values
-    plt.gca().get_xaxis().set_visible(False)
+    host.yaxis.set_major_formatter(ticker.FuncFormatter(lambda x, pos: ('%i%%') % (x)))
 
     # # Plot individual byte percentages
     if len(ibytes) > 0:
@@ -256,50 +255,52 @@ def file_ent(binname, frmt='png', figname=None, figsize=(12,4), figdpi=100, chun
             axBytePc.plot(percentages, label=label, c=c, zorder=zorder, linewidth=0.7)
 
 
-    # # Filetype specific additions
-    try:
-        exebin = lief.parse(filepath=filename)
-    except Exception as e:
-        exebin = None
-
-    if type(exebin) == lief.PE.Binary:
-
-        # # Create the additional axes - this should probably use secondary_axes (https://github.com/matplotlib/matplotlib/pull/11589)
-
-        # # Show the raw file offset (all binary files)
-        axRawOffset = host.twiny()
-        axRawOffset.set_xlim([0, fs])
-        axRawOffset.set_xticklabels(axRawOffset.get_xticklabels(), rotation=-10, size=10, ha='left', va='top')
-        axRawOffset.xaxis.set_major_formatter(ticker.FuncFormatter(lambda x, pos: ('0x%x') % (int(x))))
-        axRawOffset.set_xlabel('Raw file offset')
-        axRawOffset.xaxis.set_label_position('bottom')
-
-        # # Show the virtual offset (for PEs) - used later
-        axVirtOffset = axRawOffset.twiny()
-        axVirtOffset.set_xlabel('Virtual offset')
-        axVirtOffset.xaxis.set_label_position('top')
-
-        axVirtOffset.set_xlim([exebin.optional_header.imagebase, exebin.optional_header.imagebase + exebin.optional_header.sizeof_image])
-        axVirtOffset.set_xticklabels(axVirtOffset.get_xticklabels(), rotation=10, size=10, ha='left', va='bottom')
-        axVirtOffset.xaxis.set_major_formatter(ticker.FuncFormatter(lambda x, pos: ('0x%x') % (int(x))))
 
 
-        # # Entrypoint (EP) pointer and vline
-        v_ep = exebin.entrypoint
-        axVirtOffset.axvline(x=v_ep, linestyle='--', c='r')
-        axVirtOffset.text(x=v_ep, y=1.12, s='EP', rotation=90, verticalalignment='bottom', horizontalalignment='center')
+    # # # Filetype specific additions
+    # try:
+    #     exebin = lief.parse(filepath=filename)
+    # except Exception as e:
+    #     exebin = None
 
-        # # Section vlines
-        for section in exebin.sections:
+    # if type(exebin) == lief.PE.Binary:
 
-            section_virtual_offset = section.virtual_address + exebin.optional_header.imagebase
-            print(section.name, fs, 'virtual: '+str(hex(section_virtual_offset)), 'raw: '+str(hex(section.offset)) )
+    #     # # Create the additional axes - this should probably use secondary_axes (https://github.com/matplotlib/matplotlib/pull/11589)
 
-            axVirtOffset.axvline(x=section_virtual_offset, linestyle='--')
-            axVirtOffset.text(x=section_virtual_offset, y=1.12, s=section.name, rotation=90, verticalalignment='bottom', horizontalalignment='center')
+    #     # # Show the raw file offset (all binary files)
+    #     axRawOffset = host.twiny()
+    #     axRawOffset.set_xlim([0, fs])
+    #     axRawOffset.set_xticklabels(axRawOffset.get_xticklabels(), rotation=-10, size=10, ha='left', va='top')
+    #     axRawOffset.xaxis.set_major_formatter(ticker.FuncFormatter(lambda x, pos: ('0x%x') % (int(x))))
+    #     axRawOffset.set_xlabel('Raw file offset')
+    #     axRawOffset.xaxis.set_label_position('bottom')
 
-    else:
-        pass # NOT PE, but parse-able by lief
+    #     # # Show the virtual offset (for PEs) - used later
+    #     axVirtOffset = axRawOffset.twiny()
+    #     axVirtOffset.set_xlabel('Virtual offset')
+    #     axVirtOffset.xaxis.set_label_position('top')
+
+    #     axVirtOffset.set_xlim([exebin.optional_header.imagebase, exebin.optional_header.imagebase + exebin.optional_header.sizeof_image])
+    #     axVirtOffset.set_xticklabels(axVirtOffset.get_xticklabels(), rotation=10, size=10, ha='left', va='bottom')
+    #     axVirtOffset.xaxis.set_major_formatter(ticker.FuncFormatter(lambda x, pos: ('0x%x') % (int(x))))
+
+
+    #     # # Entrypoint (EP) pointer and vline
+    #     v_ep = exebin.entrypoint
+    #     axVirtOffset.axvline(x=v_ep, linestyle='--', c='r')
+    #     axVirtOffset.text(x=v_ep, y=1.12, s='EP', rotation=90, verticalalignment='bottom', horizontalalignment='center')
+
+    #     # # Section vlines
+    #     for section in exebin.sections:
+
+    #         section_virtual_offset = section.virtual_address + exebin.optional_header.imagebase
+    #         print(section.name, fs, 'virtual: '+str(hex(section_virtual_offset)), 'raw: '+str(hex(section.offset)) )
+
+    #         axVirtOffset.axvline(x=section_virtual_offset, linestyle='--')
+    #         axVirtOffset.text(x=section_virtual_offset, y=1.12, s=section.name, rotation=90, verticalalignment='bottom', horizontalalignment='center')
+
+    # else:
+    #     pass # NOT PE, but parse-able by lief
 
 
 
