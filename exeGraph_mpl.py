@@ -181,17 +181,20 @@ def section_byte_occurance_histogram(pebin, fig, ncols=2, ignore_0=True, bins=1,
 # chunks: how many chunks to split the file over. Smaller chunks give a more averaged graph, a larger number of chunks give more detail
 # ibytes: a dict of interesting bytes wanting to be displayed on the graph. These can often show relationships and reason for dips or
 #         increases in entropy at particular points. Bytes within each type are defined as lists of _decimals_, _not_ hex.
-def file_ent(binname, frmt='png', figname=None, figsize=(12,4), chunks=750, ibytes={'0\'s':[0], 'Printable':list(range(0,128)), 'Exploit':[44,144]}):
+def file_ent(binname, frmt='png', figname=None, figsize=(12,4), figdpi=100, chunks=750, ibytes={'0\'s':[0], 'Printable ASCII':list(range(0,128)), 'Exploit':[44,144]}):
 
     if not figname:
         clean_binname = ''.join([c for c in binname if re.match(r'[\w\_\-\.]', c)])
         figname = 'file_ent-{}.{}'.format(clean_binname, frmt)
+
 
     fh = open(binname, 'rb')
 
     # # Calculate the overall chunksize 
     fs = os.fstat(fh.fileno()).st_size
     chunksize = -(-fs // chunks)
+    nr_chunksize = fs / chunks
+
 
     shannon_samples = []
 
@@ -222,25 +225,28 @@ def file_ent(binname, frmt='png', figname=None, figsize=(12,4), chunks=750, ibyt
                 byte_ranges[label].append((float(occurance)/float(len(chunk)))*100)
 
 
-
     # # Draw the graphs in order
     zorder=99
 
-    fig, axEnt = plt.subplots(figsize=figsize)
+    # # Create the original figure
+    fig, host = plt.subplots(figsize=figsize, dpi=figdpi)
+    fig.subplots_adjust(right=0.75)
 
+    # # Plot the entropy graph
     label = 'Entropy'
     c = section_colour(label)
-    axEnt.plot(shannon_samples, label=label, c=c, zorder=zorder, linewidth=0.7)
-    axEnt.set_xlim([0,len(shannon_samples)-1])
-    axEnt.set_ylim([0, 1.1])
-    axEnt.set_ylabel('Entropy')
-    axEnt.set_xlabel('File (raw) offset')
-    axEnt.xaxis.set_major_formatter(ticker.FuncFormatter(lambda x, pos: ('0x%x') % (int(chunksize * x))))
+    host.set_xlim([0, len(shannon_samples)+1])
+    host.set_ylim([0, 1.05])
+    host.plot(shannon_samples, label=label, c=c, zorder=zorder, linewidth=0.7)
+    host.set_ylabel('Entropy\n(sampled over {} byte chunks)\n'.format(chunksize))
 
-    # # Plot the individual byte percents
+    # # Set the xaxis to non-visible so we can work with _real_ values
+    plt.gca().get_xaxis().set_visible(False)
+
+    # # Plot individual byte percentages
     if len(ibytes) > 0:
-        axBytePc = axEnt.twinx()
-        axBytePc.set_ylim([0, 101])
+        axBytePc = host.twinx()
+        axBytePc.set_ylim([-0.3, 101])
         axBytePc.set_ylabel('Occurance of bytes (%)')
         axBytePc.yaxis.set_major_formatter(ticker.FuncFormatter(lambda x, pos: ('%i%%') % (x)))
 
@@ -258,35 +264,50 @@ def file_ent(binname, frmt='png', figname=None, figsize=(12,4), chunks=750, ibyt
 
     if type(exebin) == lief.PE.Binary:
 
+        # # Create the additional axes - this should probably use secondary_axes (https://github.com/matplotlib/matplotlib/pull/11589)
+
+        # # Show the raw file offset (all binary files)
+        axRawOffset = host.twiny()
+        axRawOffset.set_xlim([0, fs])
+        axRawOffset.set_xticklabels(axRawOffset.get_xticklabels(), rotation=-10, size=10, ha='left', va='top')
+        axRawOffset.xaxis.set_major_formatter(ticker.FuncFormatter(lambda x, pos: ('0x%x') % (int(x))))
+        axRawOffset.set_xlabel('Raw file offset')
+        axRawOffset.xaxis.set_label_position('bottom')
+
+        # # Show the virtual offset (for PEs) - used later
+        axVirtOffset = axRawOffset.twiny()
+        axVirtOffset.set_xlabel('Virtual offset')
+        axVirtOffset.xaxis.set_label_position('top')
+
+        axVirtOffset.set_xlim([exebin.optional_header.imagebase, exebin.optional_header.imagebase + exebin.optional_header.sizeof_image])
+        axVirtOffset.set_xticklabels(axVirtOffset.get_xticklabels(), rotation=10, size=10, ha='left', va='bottom')
+        axVirtOffset.xaxis.set_major_formatter(ticker.FuncFormatter(lambda x, pos: ('0x%x') % (int(x))))
+
+
         # # Entrypoint (EP) pointer and vline
-        v_ep = exebin.optional_header.addressof_entrypoint/chunksize
-        axEnt.axvline(x=v_ep, linestyle='--', c='r')
-        axEnt.text(x=v_ep, y=1.12, s='EP', rotation=90, verticalalignment='bottom', horizontalalignment='center')
+        v_ep = exebin.entrypoint
+        axVirtOffset.axvline(x=v_ep, linestyle='--', c='r')
+        axVirtOffset.text(x=v_ep, y=1.12, s='EP', rotation=90, verticalalignment='bottom', horizontalalignment='center')
 
         # # Section vlines
         for section in exebin.sections:
-            raw_section_offset = section.pointerto_raw_data/chunksize
-            axEnt.axvline(x=raw_section_offset, linestyle='--')
-            axEnt.text(x=raw_section_offset, y=1.12, s=section.name, rotation=90, verticalalignment='bottom', horizontalalignment='center')
 
+            section_virtual_offset = section.virtual_address + exebin.optional_header.imagebase
+            print(section.name, fs, 'virtual: '+str(hex(section_virtual_offset)), 'raw: '+str(hex(section.offset)) )
 
-        # # Set the virtual size axis
-        # axPEvirt = axEnt.twiny()
-        # axPEvirt.set_xlim([exebin.optional_header.imagebase, exebin.optional_header.imagebase+exebin.optional_header.sizeof_image])
-        # axPEvirt.set_xlabel('Base address (virtual)')
-        # axPEvirt.xaxis.set_major_formatter(ticker.FuncFormatter(lambda x, pos: ('0x%x') % (int(x))))
-
+            axVirtOffset.axvline(x=section_virtual_offset, linestyle='--')
+            axVirtOffset.text(x=section_virtual_offset, y=1.12, s=section.name, rotation=90, verticalalignment='bottom', horizontalalignment='center')
 
     else:
-        pass # NOT PE
+        pass # NOT PE, but parse-able by lief
 
 
 
-    # # Add legends
+    # Add legends
     if len(ibytes) > 0:
-        axEnt.legend(loc=(1.1, 0.9))
+        host.legend(loc=(1.1, 0.9))
     else:
-        axEnt.legend(loc=(1.02, 0.9))
+        host.legend(loc=(1.02, 0.9))
 
     if len(ibytes) > 0:
         axBytePc.legend(loc=(1.1, 0.5))
@@ -311,7 +332,6 @@ if __name__ == '__main__':
     filename='mal/cape-9472-d69be688e'
     # filename='/bin/bash'
     # filename='mal/bytehist.exe'
-    # filename='section_byte_occurance_histogram.png'
 
 
 
@@ -335,5 +355,5 @@ if __name__ == '__main__':
 
 
 
-    file_ent(binname=filename, ibytes=[])
+    file_ent(binname=filename)
     plt.show()
