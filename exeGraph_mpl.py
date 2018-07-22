@@ -65,123 +65,6 @@ __figsize__ = (12,4)
 __figdpi__ = 100
 
 
-# ## Ent per section
-# # -------------------------------------------
-# # blocksize int:   content is divided into blocks, each block is sampled for shannon entropy. More blocks, greater resolution
-# # trend bool/None: Show a trend line. True: Show trend line, False: Dont show trend line, None: Show ONLY the trend line
-def section_ent_line(pebin, block_size=100, trend=False):
-
-    data = []
-    for i, section in enumerate(pebin.sections):
-
-        s_name = fix_section_name(section, i)
-
-        # # Get a per section colour that is unique across all samples. e.g. same section name = same colour
-        c1 = section_colour(s_name)
-
-        # # This gets the content block amounts and rounds up - so we always get 1 more than required
-        block_len = -(-len(section.content) // block_size)
-
-        shannon_samples = []
-
-        i = 1
-        prev_end = 0
-        prev_ent = 0
-        while prev_end <= len(section.content):
-
-            block_start = prev_end
-            block_end = i * block_len
-
-            real_ent = shannon_ent(section.content[ block_start : block_end ])
-
-            # Smooth
-            ent = statistics.median([real_ent, prev_ent])
-            prev_ent = real_ent
-
-
-            shannon_samples.append(ent)
-
-            prev_end = block_end+1
-            i += 1
-
-        if trend or trend == None:
-            x = range(len(shannon_samples))
-            y = shannon_samples
-
-            z = np.polyfit(x, y, 15)
-            f = np.poly1d(z)
-
-            x_new = np.linspace(x[0], x[-1], block_size)
-            y_new = f(x_new)
-
-            plt.plot(x_new,y_new, label=s_name, c=c1)
-
-        if not trend == None:
-            plt.plot(shannon_samples, label=s_name, c=c1)
-
-        # # Customise the plt
-        plt.axis([0,len(shannon_samples)-1, 0,1])
-        plt.title('Section Entropy (sampled @ {:d}): {}'.format(block_size, pebin.name))
-        plt.xlabel('Sample block')
-        plt.ylabel('Entropy')
-        plt.legend(loc='center left', bbox_to_anchor=(1, 0.5))
-
-    return
-
-
-# ## Byte histogram per section
-# # -------------------------------------------
-# # ncols int:     Number of columns of graphs
-# # ignore_0 bool: Remove x00 from the graph, sometimes this blows other results due to there being numerous amounts - also see log
-# # bins int:      Sample bins
-# # log int:       Amount of 'log' to apply to the graph
-# # ordered bool:  Add an ordered histogram - show overall distribution
-def section_byte_occurance_histogram(pebin, fig, ncols=2, ignore_0=True, bins=1, log=1, ordered=True):
-
-    ignore_0 = int(ignore_0)
-
-    for i, section in enumerate(pebin.sections):
-
-        s_name = fix_section_name(section, i)
-        c1, c2 = section_colour(s_name, True)
-
-        ax = fig.add_subplot( -(-len(pebin.sections) // ncols), ncols,i+1 )
-
-        # # Add a byte hist ordered 1 > 255
-        ordered_row = []
-        c = Counter(section.content)
-        for x in range(ignore_0, 256):
-            ordered_row.append(c[x])
-
-        ax.bar((range(ignore_0,256)), ordered_row, bins, color=c1, log=log, zorder=1)
-
-        # # Add a byte hist ordered by occurance - shows general distribution
-        if ordered:
-            sorted_row = []
-            c = Counter(section.content)
-            for x in range(ignore_0, 256):
-                sorted_row.append(c[x])
-
-            sorted_row.sort()
-            sorted_row.reverse()
-
-            ax.bar((range(ignore_0,256)), sorted_row, bins, color=c2, log=log, zorder=0)
-
-        ax.set_xlabel(s_name)
-
-        # # ax.set_title(s_name, fontsize='small')
-        ax.set_xticks([])
-        ax.set_xlim([0, 255])
-
-    fig.suptitle('Byte histogram, per section. Ordered={}: {}'.format(str(ordered),pebin.name))
-    fig.subplots_adjust(hspace=0.5)
-
-    fig.legend(loc='center left', bbox_to_anchor=(1, 0.5))
-
-
-
-
-
 # ## Byte histogram over all file
 # # -------------------------------------------
 # # binname: file to load and analyse
@@ -245,10 +128,12 @@ def bin_hist(binname, frmt=__figformat__, figname=None, figsize=__figsize__, fig
 
     ax.xaxis.set_major_formatter(ticker.FuncFormatter(lambda x, pos: ('0x%x') % (int(x))))
     ax.xaxis.set_major_locator(MaxNLocator(20))
+    ax.set_xlabel('Bytes')
+    ax.set_ylabel('Occurance (log {})'.format(g_log))
 
     plt.legend(loc=(1.03, 0.9))
 
-    fig.suptitle('Byte histogram. Ordered={}: {}'.format(str(ordered), binname))
+    fig.suptitle('Byte histogram: {}'.format(os.path.basename(binname)))
     fig.subplots_adjust(hspace=0.5)
 
     logo = plt.imread('cape.png')
@@ -256,6 +141,13 @@ def bin_hist(binname, frmt=__figformat__, figname=None, figsize=__figsize__, fig
 
     plt.savefig(fname=figname, format=frmt, bbox_inches='tight')
     log.debug('Saved to: {}.{}'.format(figname, frmt))
+
+    if False:
+        plt.show()
+
+    plt.clf()
+    plt.cla()
+    plt.close(fig)
 
 
 # ## Entropy and byte occurance analysis over all file
@@ -296,9 +188,10 @@ def bin_ent(binname, frmt=__figformat__, figname=None, figsize=__figsize__, figd
     # # Create byte occurrence dict if required
     if len(ibytes) > 0:
         byte_ranges = {key: [] for key in ibytes.keys()}
-        log.debug('Parsed byte ranges: {}'.format(byte_ranges))
 
     log.debug('Going for iteration over bytes with chunksize {}'.format(chunksize))
+    log.debug('Using ibytes: {}'.format(ibytes))
+
     prev_ent = 0
     for chunk in get_chunk(fh, chunksize=chunksize):
 
@@ -341,8 +234,9 @@ def bin_ent(binname, frmt=__figformat__, figname=None, figsize=__figsize__, figd
     host.xaxis.set_major_locator(MaxNLocator(10))
 
     # # Plot individual byte percentages
-    log.debug('Plotting ibytes: {}'.format(ibytes))
     if len(ibytes) > 0:
+        log.debug('Plotting ibytes')
+
         axBytePc = host.twinx()
         axBytePc.set_ylim([-0.3, 101])
         axBytePc.set_ylabel('Occurance of bytes (%)')
@@ -397,13 +291,137 @@ def bin_ent(binname, frmt=__figformat__, figname=None, figsize=__figsize__, figd
 
     logo = plt.imread('cape.png')
 
-    fig.suptitle('Binary entropy (sampled over {} byte chunks): {}'.format(chunksize, binname))
+    fig.suptitle('Binary entropy (sampled over {} byte chunks): {}'.format(chunksize, os.path.basename(binname)), y=1.1)
     fig.subplots_adjust(hspace=0.5)
 
     fig.figimage(logo, alpha=.5, zorder=99)
 
     plt.savefig(fname=figname, format=frmt, bbox_inches='tight')
     log.debug('Saved to: {}.{}'.format(figname, frmt))
+
+    if False:
+        plt.show()
+
+    plt.clf()
+    plt.cla()
+    plt.close(fig)
+
+
+def section_graphs():
+    # ## Ent per section
+    # # -------------------------------------------
+    # # blocksize int:   content is divided into blocks, each block is sampled for shannon entropy. More blocks, greater resolution
+    # # trend bool/None: Show a trend line. True: Show trend line, False: Dont show trend line, None: Show ONLY the trend line
+    def section_ent_line(pebin, block_size=100, trend=False):
+
+        data = []
+        for i, section in enumerate(pebin.sections):
+
+            s_name = fix_section_name(section, i)
+
+            # # Get a per section colour that is unique across all samples. e.g. same section name = same colour
+            c1 = section_colour(s_name)
+
+            # # This gets the content block amounts and rounds up - so we always get 1 more than required
+            block_len = -(-len(section.content) // block_size)
+
+            shannon_samples = []
+
+            i = 1
+            prev_end = 0
+            prev_ent = 0
+            while prev_end <= len(section.content):
+
+                block_start = prev_end
+                block_end = i * block_len
+
+                real_ent = shannon_ent(section.content[ block_start : block_end ])
+
+                # Smooth
+                ent = statistics.median([real_ent, prev_ent])
+                prev_ent = real_ent
+
+
+                shannon_samples.append(ent)
+
+                prev_end = block_end+1
+                i += 1
+
+            if trend or trend == None:
+                x = range(len(shannon_samples))
+                y = shannon_samples
+
+                z = np.polyfit(x, y, 15)
+                f = np.poly1d(z)
+
+                x_new = np.linspace(x[0], x[-1], block_size)
+                y_new = f(x_new)
+
+                plt.plot(x_new,y_new, label=s_name, c=c1)
+
+            if not trend == None:
+                plt.plot(shannon_samples, label=s_name, c=c1)
+
+            # # Customise the plt
+            plt.axis([0,len(shannon_samples)-1, 0,1])
+            plt.title('Section Entropy (sampled @ {:d}): {}'.format(block_size, pebin.name))
+            plt.xlabel('Sample block')
+            plt.ylabel('Entropy')
+            plt.legend(loc='center left', bbox_to_anchor=(1, 0.5))
+
+        return
+
+
+    # ## Byte histogram per section
+    # # -------------------------------------------
+    # # ncols int:     Number of columns of graphs
+    # # ignore_0 bool: Remove x00 from the graph, sometimes this blows other results due to there being numerous amounts - also see log
+    # # bins int:      Sample bins
+    # # log int:       Amount of 'log' to apply to the graph
+    # # ordered bool:  Add an ordered histogram - show overall distribution
+    def section_byte_occurance_histogram(pebin, fig, ncols=2, ignore_0=True, bins=1, log=1, ordered=True):
+
+        ignore_0 = int(ignore_0)
+
+        for i, section in enumerate(pebin.sections):
+
+            s_name = fix_section_name(section, i)
+            c1, c2 = section_colour(s_name, True)
+
+            ax = fig.add_subplot( -(-len(pebin.sections) // ncols), ncols,i+1 )
+
+            # # Add a byte hist ordered 1 > 255
+            ordered_row = []
+            c = Counter(section.content)
+            for x in range(ignore_0, 256):
+                ordered_row.append(c[x])
+
+            ax.bar((range(ignore_0,256)), ordered_row, bins, color=c1, log=log, zorder=1)
+
+            # # Add a byte hist ordered by occurance - shows general distribution
+            if ordered:
+                sorted_row = []
+                c = Counter(section.content)
+                for x in range(ignore_0, 256):
+                    sorted_row.append(c[x])
+
+                sorted_row.sort()
+                sorted_row.reverse()
+
+                ax.bar((range(ignore_0,256)), sorted_row, bins, color=c2, log=log, zorder=0)
+
+            ax.set_xlabel(s_name)
+
+            # # ax.set_title(s_name, fontsize='small')
+            ax.set_xticks([])
+            ax.set_xlim([0, 255])
+
+        fig.suptitle('Byte histogram, per section: {}'.format(str(ordered),pebin.name))
+        fig.subplots_adjust(hspace=0.5)
+
+        fig.legend(loc='center left', bbox_to_anchor=(1, 0.5))
+
+
 
 if __name__ == '__main__':
 
@@ -419,9 +437,9 @@ if __name__ == '__main__':
     parser.add_argument('--format', type=str, default=__figformat__, choices=['png', 'pdf', 'ps', 'eps','svg'], required=False, metavar='png', help='Graph output format')
     parser.add_argument('--figsize', type=int, nargs=2, default=__figsize__, metavar='#', help='Figure width and height in inches')
     parser.add_argument('--dpi', type=int, default=__figdpi__, metavar=__figdpi__, help='Figure dpi')
-
     parser.add_argument('-v', '--verbose', action='store_true', help='Print debug information to stderr')
 
+    parser.add_argument('-g', action='store_true', help='Graph type') # Pretty a dummy argument - required due to the --file arg being greedy
     subparsers = parser.add_subparsers(dest='graphtype')
     subparsers.required = True
 
@@ -439,7 +457,6 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-
     ## # Verify arguments
 
     # # Set logging
@@ -451,16 +468,16 @@ if __name__ == '__main__':
     log = logging.getLogger('binGraph')
 
     # # Does the file exist?
+    files = []
     for f in args.file:
         if not os.path.isfile(f):
-            log.critical('Exiting, cannot find file: {}'.format(f))
-            exit(1)
+            log.critical('Not a file, skipping: {}'.format(f))
         else:
             log.debug('File exists: {}'.format(f))
-        
+            files.append(f)
 
     # # Iterate over all given files
-    for index, file in enumerate(args.file):
+    for index, file in enumerate(files):
 
         if len(args.file) > 0 and args.out:
             out_fname = ''.join([c for c in os.path.basename(file) if re.match(r'[\w\d\_\-\.]', c)])
@@ -474,9 +491,12 @@ if __name__ == '__main__':
         log.debug('[+++] Generating: {}'.format(out_fname))
 
         if args.graphtype == 'bin_ent':
-            args.ibytes = json.loads(args.ibytes)
-            bin_ent(binname=file, frmt=args.format, figname=out_fname, figsize=(args.figsize[0], args.figsize[1]), figdpi=args.dpi, ibytes=args.ibytes)
+            ibytes = json.loads(args.ibytes)
+            bin_ent(binname=file, frmt=args.format, figname=out_fname, figsize=(args.figsize[0], args.figsize[1]), figdpi=args.dpi, ibytes=ibytes)
         elif args.graphtype == 'bin_hist':
             bin_hist(binname=file, frmt=args.format, figname=out_fname, figsize=(args.figsize[0], args.figsize[1]), figdpi=args.dpi, ignore_0=args.ignore_0, bins=args.bins, g_log=args.log, ordered=args.ordered)
 
         log.debug('[+++] Done: {}'.format(out_fname))
+
+
+
