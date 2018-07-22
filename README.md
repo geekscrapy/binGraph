@@ -1,18 +1,12 @@
 exeGraph
 
- % on right
- ent on left
- raw file size on bottom
- 
- if pe:
-   section lines
-   section arrows
-   virtual filesize on top exeGraph
-
-use twinx and twiny for creating additional scales
-
-
 To do:
+
+ bin_ent
+ 	Add other file types to pebin parser
+
+ bin_hist
+ 	Move cape logo to top right
 
 Create json to capture:
 	the filename
