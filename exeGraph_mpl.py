@@ -21,6 +21,7 @@ import math
 import hashlib
 import statistics
 import os, re
+import json
 
 
 ## Helper functions
@@ -49,7 +50,8 @@ def section_colour(text, multi=False):
 def fix_section_name(section, index):
         s_name = section.name
         if s_name == '' or s_name == None:
-            s_name = 'unknown_'+str(index)
+            print(str(index))
+            s_name = 'sect_'+str(index)
         return s_name
 
 # Read files as chunks
@@ -60,6 +62,11 @@ def get_chunk(fh, chunksize=8192):
             yield list(chunk)
         else:
             break
+
+# # Global variables
+__figformat__ = 'png'
+__figsize__ = (12,4)
+__figdpi__ = 100
 
 # ## Ent per section
 def section_ent_line(pebin, block_size=100, trend=False):
@@ -181,26 +188,34 @@ def section_byte_occurance_histogram(pebin, fig, ncols=2, ignore_0=True, bins=1,
 # chunks: how many chunks to split the file over. Smaller chunks give a more averaged graph, a larger number of chunks give more detail
 # ibytes: a dict of interesting bytes wanting to be displayed on the graph. These can often show relationships and reason for dips or
 #         increases in entropy at particular points. Bytes within each type are defined as lists of _decimals_, _not_ hex.
-def file_ent(binname, frmt='png', figname=None, figsize=(12,4), figdpi=100, chunks=750, ibytes={'0\'s':[0], 'Printable ASCII':list(range(0,128)), 'Exploit':[44,144]}):
+
+# Global variables specific to function
+__chunks__ = 750
+__ibytes__= "{\"0\'s\": [0] , \"Exploit\": [44, 144] }"
+__ibytes_dict__ = json.loads(__ibytes__)
+def file_ent(binname, frmt=__figformat__, figname=None, figsize=__figsize__, figdpi=__figdpi__, chunks=__chunks__, ibytes=__ibytes_dict__):
 
     if not figname:
         clean_binname = ''.join([c for c in binname if re.match(r'[\w\_\-\.]', c)])
         figname = 'file_ent-{}.{}'.format(clean_binname, frmt)
 
+        log.debug('No name given. Generated: {}'.format(figname))
+
     fh = open(binname, 'rb')
+    log.debug('Opening: {}'.format(binname))
 
     # # Calculate the overall chunksize 
     fs = os.fstat(fh.fileno()).st_size
     chunksize = -(-fs // chunks)
     nr_chunksize = fs / chunks
-
+    log.debug('Filesize: {}, Chunksize (rounded): {}, Chunksize: {}, Chunks: {}'.format(fs, chunksize, nr_chunksize, chunks))
 
     shannon_samples = []
 
-    # # Create byte occurance dict if required
+    # # Create byte occurrence dict if required
     if len(ibytes) > 0:
         byte_ranges = {key: [] for key in ibytes.keys()}
-
+        log.debug('Parsed byte ranges: {}'.format(byte_ranges))
 
     prev_ent = 0
     for chunk in get_chunk(fh, chunksize=chunksize):
@@ -232,15 +247,12 @@ def file_ent(binname, frmt='png', figname=None, figsize=(12,4), figdpi=100, chun
     fig.subplots_adjust(right=0.75)
 
     # # Plot the entropy graph
-    label = 'Entropy'
-    c = section_colour(label)
     host.set_xlim([0, len(shannon_samples)+1])
     host.set_ylim([0, 1.05])
-    host.plot(shannon_samples, label=label, c=c, zorder=zorder, linewidth=0.7)
+    host.plot(shannon_samples, label='Entropy', c=section_colour('Entropy'), zorder=zorder, linewidth=0.7)
     host.set_ylabel('Entropy\n(sampled over {} byte chunks)\n'.format(chunksize))
     host.set_xlabel('Raw file offset')
-
-    host.yaxis.set_major_formatter(ticker.FuncFormatter(lambda x, pos: ('%i%%') % (x)))
+    host.xaxis.set_major_formatter(ticker.FuncFormatter(lambda x, pos: ('0x%x') % (int(x * nr_chunksize)))) 
 
     # # Plot individual byte percentages
     if len(ibytes) > 0:
@@ -255,53 +267,28 @@ def file_ent(binname, frmt='png', figname=None, figsize=(12,4), figdpi=100, chun
             axBytePc.plot(percentages, label=label, c=c, zorder=zorder, linewidth=0.7)
 
 
+    # # Filetype specific additions
+    try:
+        exebin = lief.parse(filepath=filename)
+    except Exception as e:
+        exebin = None
 
+    if type(exebin) == lief.PE.Binary:
 
-    # # # Filetype specific additions
-    # try:
-    #     exebin = lief.parse(filepath=filename)
-    # except Exception as e:
-    #     exebin = None
+        # # Entrypoint (EP) pointer and vline
+        v_ep = exebin.va_to_offset(exebin.entrypoint) / nr_chunksize
+        host.axvline(x=v_ep, linestyle='--', c='r')
+        host.text(x=v_ep, y=1.07, s='EP', rotation=90, verticalalignment='bottom', horizontalalignment='center')
 
-    # if type(exebin) == lief.PE.Binary:
+        # # Section vlines
+        for index, section in enumerate(exebin.sections):
+            section_offset = section.offset / nr_chunksize
 
-    #     # # Create the additional axes - this should probably use secondary_axes (https://github.com/matplotlib/matplotlib/pull/11589)
+            host.axvline(x=section_offset, linestyle='--')
+            host.text(x=section_offset, y=1.07, s=fix_section_name(section, index), rotation=90, verticalalignment='bottom', horizontalalignment='center')
 
-    #     # # Show the raw file offset (all binary files)
-    #     axRawOffset = host.twiny()
-    #     axRawOffset.set_xlim([0, fs])
-    #     axRawOffset.set_xticklabels(axRawOffset.get_xticklabels(), rotation=-10, size=10, ha='left', va='top')
-    #     axRawOffset.xaxis.set_major_formatter(ticker.FuncFormatter(lambda x, pos: ('0x%x') % (int(x))))
-    #     axRawOffset.set_xlabel('Raw file offset')
-    #     axRawOffset.xaxis.set_label_position('bottom')
-
-    #     # # Show the virtual offset (for PEs) - used later
-    #     axVirtOffset = axRawOffset.twiny()
-    #     axVirtOffset.set_xlabel('Virtual offset')
-    #     axVirtOffset.xaxis.set_label_position('top')
-
-    #     axVirtOffset.set_xlim([exebin.optional_header.imagebase, exebin.optional_header.imagebase + exebin.optional_header.sizeof_image])
-    #     axVirtOffset.set_xticklabels(axVirtOffset.get_xticklabels(), rotation=10, size=10, ha='left', va='bottom')
-    #     axVirtOffset.xaxis.set_major_formatter(ticker.FuncFormatter(lambda x, pos: ('0x%x') % (int(x))))
-
-
-    #     # # Entrypoint (EP) pointer and vline
-    #     v_ep = exebin.entrypoint
-    #     axVirtOffset.axvline(x=v_ep, linestyle='--', c='r')
-    #     axVirtOffset.text(x=v_ep, y=1.12, s='EP', rotation=90, verticalalignment='bottom', horizontalalignment='center')
-
-    #     # # Section vlines
-    #     for section in exebin.sections:
-
-    #         section_virtual_offset = section.virtual_address + exebin.optional_header.imagebase
-    #         print(section.name, fs, 'virtual: '+str(hex(section_virtual_offset)), 'raw: '+str(hex(section.offset)) )
-
-    #         axVirtOffset.axvline(x=section_virtual_offset, linestyle='--')
-    #         axVirtOffset.text(x=section_virtual_offset, y=1.12, s=section.name, rotation=90, verticalalignment='bottom', horizontalalignment='center')
-
-    # else:
-    #     pass # NOT PE, but parse-able by lief
-
+    else:
+        pass # NOT PE, but parse-able by lief, need to add more custom parsing
 
 
     # Add legends
@@ -313,7 +300,6 @@ def file_ent(binname, frmt='png', figname=None, figsize=(12,4), figdpi=100, chun
     if len(ibytes) > 0:
         axBytePc.legend(loc=(1.1, 0.5))
 
-
     logo = plt.imread('cape.png')
     fig.figimage(logo, alpha=.5, zorder=99)
 
@@ -322,24 +308,75 @@ def file_ent(binname, frmt='png', figname=None, figsize=(12,4), figdpi=100, chun
 
 if __name__ == '__main__':
 
-    # ## Input file
-    # filename='mal/aa14c8e777-cape'
-    # filename='mal/test.exe'
-    # filename='mal/Locky.bin.mal'
-    # filename='mal/Shamoon-bin.mal'
-    # filename='mal/Win32.Sofacy.A.bin.mal'
-    # filename='mal/upxed.exe'
-    # filename='mal/cape-9480-d746baede2c7'
-    filename='mal/cape-9472-d69be688e'
-    # filename='/bin/bash'
-    # filename='mal/bytehist.exe'
+    import os
+    import sys
+    import logging
+    import argparse
+
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument('-f', '--file', type=str, required=True, nargs='+', metavar='file.exe', help='Give me an entropy graph of this file!')
+    parser.add_argument('-o', '--out', type=str, help='Graph output prefix - without extension!')
+    parser.add_argument('--format', type=str, default=__figformat__, choices=['png', 'pdf', 'ps', 'eps','svg'], required=False, metavar='png', help='Graph output format')
+    parser.add_argument('--figsize', type=int, nargs=2, default=__figsize__, metavar='#', help='Figure width and height in inches')
+    parser.add_argument('--dpi', type=int, default=__figdpi__, metavar='100', help='Figure dpi')
+
+    parser.add_argument('-v', '--verbose', action='store_true', help='Print debug information to stderr')
+
+    subparsers = parser.add_subparsers(dest='graphtype')
+    subparsers.required = True
+
+    # # Arguments for the bytehist graph
+    parser_bytehist = subparsers.add_parser('bytehist')
 
 
+    # # Arguments for the ent graph
+    parser_ent = subparsers.add_parser('ent')
+    parser.add_argument('-c','--chunks', type=int, default=__chunks__, metavar='72', help='Figure dpi')
+    parser.add_argument('--ibytes', type=str, default=__ibytes__, metavar='\"{\\\"0\'s\\\": [0] , \\\"Exploit\\\": [44, 144] }\"', help='JSON of bytes to include in the graph')
 
-    # ## Graph formats
-    fmt = 'png' # Can be svg, png...
-    fsize = (12,4) # Width, Height
+    args = parser.parse_args()
 
+
+    ## # Verify arguments
+
+    # # Set logging
+    if args.verbose:
+        logging.basicConfig(stream=sys.stderr, format='Verbose | %(levelname)s | %(message)s', level=logging.DEBUG)
+    else:
+        logging.basicConfig(stream=sys.stderr, format='*** %(levelname)s | %(message)s', level=logging.CRITICAL)
+
+    log = logging.getLogger('binGraph')
+
+    # # Does the file exist?
+    for f in args.file:
+        if not os.path.isfile(f):
+            log.critical('Exiting, cannot find file: {}'.format(f))
+            exit(1)
+        else:
+            log.debug('File exists: {}'.format(f))
+
+    # # Parse ibytes
+    args.ibytes = json.loads(args.ibytes)
+
+    # # Iterate over all given files
+    for index, file in enumerate(args.file):
+
+        if len(args.file) > 0 and args.out:
+            out_fname = ''.join([c for c in os.path.basename(file) if re.match(r'[\w\d\_\-\.]', c)])
+            out_fname = '{}_{}_{}_{}-{}_{}.{}'.format(args.out, out_fname, args.graphtype, 'x'.join(map(str, args.figsize)), args.dpi, index, args.format)
+        elif not args.out:
+            out_fname = ''.join([c for c in os.path.basename(file) if re.match(r'[\w\d\_\-\.]', c)])
+            out_fname = '{}.{}'.format(out_fname, args.format)
+        else:
+            out_fname = args.out
+
+        log.debug('[+++] Generating: {}'.format(out_fname))
+
+        if args.graphtype == 'ent':
+            file_ent(binname=file, figname=out_fname, figsize=(args.figsize[0], args.figsize[1]), figdpi=args.dpi, ibytes=args.ibytes)
+
+        log.debug('[+++] Done: {}'.format(out_fname))
 
 
     # pebin = lief.parse(filepath=filename)
@@ -356,5 +393,4 @@ if __name__ == '__main__':
 
 
 
-    file_ent(binname=filename)
-    plt.show()
+
