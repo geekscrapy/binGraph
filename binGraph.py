@@ -85,8 +85,8 @@ __figdpi__ = 100
 __ignore_0__ = True
 __bins__ = 1
 __g_log__ = 1
-__ordered__ = True
-def bin_hist(binname, frmt=__figformat__, figname=None, figsize=__figsize__, figdpi=__figdpi__, ignore_0=__ignore_0__, bins=__bins__, g_log=__g_log__, ordered=__ordered__):
+__no_order__ = True
+def bin_hist(binname, frmt=__figformat__, figname=None, figsize=__figsize__, figdpi=__figdpi__, ignore_0=__ignore_0__, bins=__bins__, g_log=__g_log__, ordered=__no_order__):
 
     if not figname:
         figname = 'bin_hist-{}.{}'.format(clean_fname(binname), frmt)
@@ -117,7 +117,7 @@ def bin_hist(binname, frmt=__figformat__, figname=None, figsize=__figsize__, fig
     for x in range(ignore_0, 256):
         ordered_row.append(c[x])
 
-    ax.bar((range(ignore_0, 256)), ordered_row, bins, label='Bytes', color='r', log=g_log, zorder=1)
+    ax.bar((range(ignore_0, 256)), ordered_row, bins, label='Bytes', color='r', log=g_log, zorder=0)
     log.debug('Graphed binary array')
 
     # # Add a byte hist ordered by occurance - shows general distribution
@@ -130,7 +130,7 @@ def bin_hist(binname, frmt=__figformat__, figname=None, figsize=__figsize__, fig
         sorted_row.sort()
         sorted_row.reverse()
 
-        ax.bar((range(ignore_0,256)), sorted_row, bins, label='Ordered', color='b', log=g_log, zorder=0)
+        ax.bar((range(ignore_0,256)), sorted_row, bins, label='Ordered', color='b', log=g_log, zorder=1, alpha=.5)
         log.debug('Graphed ordered binary array')
 
     ax.xaxis.set_major_formatter(ticker.FuncFormatter(lambda x, pos: ('0x%x') % (int(x))))
@@ -466,7 +466,7 @@ if __name__ == '__main__':
     parser_bin_hist.add_argument('--ignore_0', action='store_true', default=__ignore_0__, help='Remove x00 from the graph, sometimes this blows other results due to there being numerous amounts - also see --log')
     parser_bin_hist.add_argument('--bins', type=int, default=__bins__, metavar=__bins__, help='Sample bins')
     parser_bin_hist.add_argument('--log', type=int, default=__g_log__, metavar=__g_log__, help='Amount of \'log\' to apply to the graph')
-    parser_bin_hist.add_argument('--ordered', action='store_true', default=__ordered__, help='Add an ordered histogram - show overall distribution')
+    parser_bin_hist.add_argument('--no_order', action='store_false', default=__no_order__, help='Remove the ordered histogram - With it on, it shows the overall distribution')
 
     args = parser.parse_args()
 
@@ -509,7 +509,7 @@ if __name__ == '__main__':
         args.ignore_0 = __ignore_0__
         args.bins = __bins__
         args.log = __g_log__
-        args.ordered = __ordered__
+        args.ordered = __no_order__
 
     else:
         graph_types = [args.graphtype]
@@ -541,7 +541,7 @@ if __name__ == '__main__':
         if 'bin_hist' in graph_types:
             __save_fn__ = save_fn.format('bin_hist')
             log.debug('+ Generating bin_hist from "{}"'.format(file))
-            bin_hist(binname=file, frmt=args.format, figname=__save_fn__, figsize=(args.figsize[0], args.figsize[1]), figdpi=args.dpi, ignore_0=args.ignore_0, bins=args.bins, g_log=args.log, ordered=args.ordered)
+            bin_hist(binname=file, frmt=args.format, figname=__save_fn__, figsize=(args.figsize[0], args.figsize[1]), figdpi=args.dpi, ignore_0=args.ignore_0, bins=args.bins, g_log=args.log, ordered=args.no_order)
 
         log.debug('+++ Complete: "{}"'.format(file))
 

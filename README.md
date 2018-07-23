@@ -58,7 +58,8 @@ optional arguments:
 !MALWARE! From: https://cape.contextis.com/file/CAPE/9472/ad5a729e7c4047c946601e5533b1dfa3983a0d84da61b743dda1ca3b1c956ec5/
 ```
 $ python binGraph.py bin_hist --help
-usage: binGraph.py bin_hist [-h] [--ignore_0] [--bins 1] [--log 1] [--ordered]
+usage: binGraph.py bin_hist [-h] [--ignore_0] [--bins 1] [--log 1]
+                            [--no_order]
 
 optional arguments:
   -h, --help  show this help message and exit
@@ -66,5 +67,6 @@ optional arguments:
               due to there being numerous amounts - also see --log
   --bins 1    Sample bins
   --log 1     Amount of 'log' to apply to the graph
-  --ordered   Add an ordered histogram - show overall distribution
+  --no_order  Remove the ordered histogram - With it on, it shows the overall
+              distribution
 ```
