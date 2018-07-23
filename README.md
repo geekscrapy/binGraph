@@ -1,46 +1,62 @@
-# binGraph
-Simple tool to graph binary files (pretty much anything)
+# binGraph.py
+Simple tool to graph files for quick analysis
+
+Allows you to create matplotlib graphs to represent different aspects of a file (usually malware). Focusing on entropy graphs
+
+Given a file(s) (with ```--file```) different graphs can be generated (e.g. ```bin_ent```, ```bin_hist``` etc.) or ```all``` can be used to generate all the graphs available for that file.
+
+Below are the ```--help ```.
 
 ```
-  $ python exeGraph_mpl.py --help
-  usage: exeGraph_mpl.py [-h] -f file.exe [file.exe ...] [-o OUT] [--format png]
-                         [--figsize # #] [--dpi 100] [-v] [-g]
-                         {bin_hist,bin_ent} ...
-  positional arguments:
-    {bin_hist,bin_ent}
+$ python binGraph.py --help
+usage: binGraph.py [-h] -f malware.exe [malware.exe ...] [-] [-p PREFIX]
+                   [-d /data/graphs/] [--format png] [--figsize # #]
+                   [--dpi 100] [-v]
+                   {all,bin_ent,bin_hist} ...
 
-  optional arguments:
-    -h, --help            show this help message and exit
-    -f file.exe [file.exe ...], --file file.exe [file.exe ...]
-                          Give me an entropy graph of this file!
-    -o OUT, --out OUT     Graph output prefix - without extension!
-    --format png          Graph output format
-    --figsize # #         Figure width and height in inches
-    --dpi 100             Figure dpi
-    -v, --verbose         Print debug information to stderr
-    -g                    Graph type
+positional arguments:
+  {all,bin_ent,bin_hist}
+                        Graph type to generate
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -f malware.exe [malware.exe ...], --file malware.exe [malware.exe ...]
+                        Give me a graph of this file. See - if this is the
+                        only argument specified.
+  -                     *** Required if --file or -f is the only argument
+                        given before a graph type is given (it's greedy!).
+                        E.g. "binGraph.py --file mal.exe - bin_ent"
+  -p PREFIX, --prefix PREFIX
+                        Saved graph output filename (without extension)
+  -d /data/graphs/, --save_dir /data/graphs/
+                        Where to save the graph files
+  --format png          Graph output format
+  --figsize # #         Figure width and height in inches
+  --dpi 100             Figure dpi
+  -v, --verbose         Print debug information to stderr
 ```
 
 ```
-  $ exeGraph_mpl.py -f file.exe bin_hist --help
-  usage: exeGraph_mpl.py bin_hist [-h] [--ignore_0] [--bins 1] [--log 1]
-                                  [--ordered]
-  optional arguments:
-    -h, --help  show this help message and exit
-    --ignore_0  Remove x00 from the graph, sometimes this blows other results
-                due to there being numerous amounts - also see --log
-    --bins 1    Sample bins
-    --log 1     Amount of 'log' to apply to the graph
-    --ordered   Add an ordered histogram - show overall distribution
+$ python binGraph.py bin_ent --help
+usage: binGraph.py bin_ent [-h] [-c 72] [--ibytes "{\"0's\": [0] ,
+                           \"Exploit\": [44, 144] }"]
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -c 72, --chunks 72    Figure dpi
+  --ibytes "{\"0's\": [0] , \"Exploit\": [44, 144] }"
+                        JSON of bytes to include in the graph
 ```
     
 ```
-  $ python exeGraph_mpl.py -f file.exe bin_ent --help
-  usage: exeGraph_mpl.py bin_ent [-h] [-c 72] [--ibytes "{\"0's\": [0] ,
-                                 \"Exploit\": [44, 144] }"]
-  optional arguments:
-    -h, --help            show this help message and exit
-    -c 72, --chunks 72    Figure dpi
-    --ibytes "{\"0's\": [0] , \"Exploit\": [44, 144] }"
-                          JSON of bytes to include in the graph
+$ python binGraph.py bin_hist --help
+usage: binGraph.py bin_hist [-h] [--ignore_0] [--bins 1] [--log 1] [--ordered]
+
+optional arguments:
+  -h, --help  show this help message and exit
+  --ignore_0  Remove x00 from the graph, sometimes this blows other results
+              due to there being numerous amounts - also see --log
+  --bins 1    Sample bins
+  --log 1     Amount of 'log' to apply to the graph
+  --ordered   Add an ordered histogram - show overall distribution
 ```
