@@ -458,7 +458,7 @@ if __name__ == '__main__':
 
     # # Arguments for the ent graph
     parser_bin_ent = subparsers.add_parser('bin_ent')
-    parser_bin_ent.add_argument('-c','--chunks', type=int, default=__chunks__, metavar='72', help='Figure dpi')
+    parser_bin_ent.add_argument('-c','--chunks', type=int, default=__chunks__, metavar='72', help='Defines how many chunks the binary is split into (and therefore the amount of bytes submitted for shannon sampling per time)')
     parser_bin_ent.add_argument('--ibytes', type=str, default=__ibytes__, metavar='\"{\\\"0\'s\\\": [0] , \\\"Exploit\\\": [44, 144] }\"', help='JSON of bytes to include in the graph')
 
     # # Arguments for the bytehist graph
