@@ -36,7 +36,7 @@ optional arguments:
   -v, --verbose         Print debug information to stderr
 ```
 
-![Binary entropy graph](bin_ent.jpg?raw=true "Binary entropy graph - from PE executable")
+![Binary entropy graph](https://github.com/geekscrapy/binGraph/blob/public/example-bin_ent.png "Binary entropy graph - from PE executable")
 !MALWARE! From: https://cape.contextis.com/file/CAPE/9472/ad5a729e7c4047c946601e5533b1dfa3983a0d84da61b743dda1ca3b1c956ec5/
 
 ```
@@ -51,7 +51,7 @@ optional arguments:
                         JSON of bytes to include in the graph
 ```
 
-![Binary byte histogram](bin_ent.jpg?raw=true "Binary byte histogram")
+![Binary byte histogram](https://github.com/geekscrapy/binGraph/blob/public/example-bin_hist.png "Binary byte histogram")
 
 ```
 $ python binGraph.py bin_hist --help
