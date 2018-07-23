@@ -41,12 +41,12 @@ optional arguments:
 !MALWARE! From: https://cape.contextis.com/file/CAPE/9472/ad5a729e7c4047c946601e5533b1dfa3983a0d84da61b743dda1ca3b1c956ec5/
 ```
 $ python binGraph.py bin_ent --help
-usage: binGraph.py bin_ent [-h] [-c 72] [--ibytes "{\"0's\": [0] ,
+usage: binGraph.py bin_ent [-h] [-c 750] [--ibytes "{\"0's\": [0] ,
                            \"Exploit\": [44, 144] }"]
 
 optional arguments:
   -h, --help            show this help message and exit
-  -c 72, --chunks 72    Defines how many chunks the binary is split into (and
+  -c 750, --chunks 750    Defines how many chunks the binary is split into (and
                         therefore the amount of bytes submitted for shannon
                         sampling per time). Higher number gives more detail
   --ibytes "{\"0's\": [0] , \"Exploit\": [44, 144] }"
