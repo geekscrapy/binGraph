@@ -46,7 +46,9 @@ usage: binGraph.py bin_ent [-h] [-c 72] [--ibytes "{\"0's\": [0] ,
 
 optional arguments:
   -h, --help            show this help message and exit
-  -c 72, --chunks 72    Figure dpi
+  -c 72, --chunks 72    Defines how many chunks the binary is split into (and
+                        therefore the amount of bytes submitted for shannon
+                        sampling per time). Higher number gives more detail
   --ibytes "{\"0's\": [0] , \"Exploit\": [44, 144] }"
                         JSON of bytes to include in the graph
 ```
