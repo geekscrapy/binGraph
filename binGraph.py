@@ -59,6 +59,9 @@ def get_chunk(fh, chunksize=8192):
         else:
             break
 
+def clean_fname(fn):
+    return ''.join([c for c in fn if re.match(r'[\w\_\-]', c)])
+
 # ## Global variables
 __figformat__ = 'png'
 __figsize__ = (12,4)
@@ -81,16 +84,20 @@ __figdpi__ = 100
 # # Global variables specific to function
 __ignore_0__ = True
 __bins__ = 1
-__log__ = 1
+__g_log__ = 1
 __ordered__ = True
-def bin_hist(binname, frmt=__figformat__, figname=None, figsize=__figsize__, figdpi=__figdpi__, ignore_0=__ignore_0__, bins=__bins__, g_log=__log__, ordered=__ordered__):
+def bin_hist(binname, frmt=__figformat__, figname=None, figsize=__figsize__, figdpi=__figdpi__, ignore_0=__ignore_0__, bins=__bins__, g_log=__g_log__, ordered=__ordered__):
+
+    if not figname:
+        figname = 'bin_hist-{}.{}'.format(clean_fname(binname), frmt)
+        log.debug('No name given. Generated: {}'.format(figname))
 
     file_array = []
     with open(binname, 'rb') as fh:
         for x in fh.read():
             file_array.append(x)
 
-    log.debug('Read: {}, length: {}'.format(binname, len(file_array)))
+    log.debug('Read: "{}", length: {}'.format(binname, len(file_array)))
 
     ignore_0 = int(ignore_0)
     log.debug('Ignore 0\'s: {}'.format(ignore_0))
@@ -140,7 +147,7 @@ def bin_hist(binname, frmt=__figformat__, figname=None, figsize=__figsize__, fig
     fig.figimage(logo, alpha=.5, zorder=99)
 
     plt.savefig(fname=figname, format=frmt, bbox_inches='tight')
-    log.debug('Saved to: {}.{}'.format(figname, frmt))
+    log.debug('Saved to: "{}"'.format(figname))
 
     if False:
         plt.show()
@@ -164,18 +171,16 @@ def bin_hist(binname, frmt=__figformat__, figname=None, figsize=__figsize__, fig
 
 # # Global variables specific to function
 __chunks__ = 750
-__ibytes__= '{"0\'s": [0], "Printable": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127], "Exploit": [44, 144]}'
+__ibytes__= '{"0\'s": [0], "Printable ASCII": [32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126], "Exploit": [44, 144]}'
 __ibytes_dict__ = json.loads(__ibytes__)
 def bin_ent(binname, frmt=__figformat__, figname=None, figsize=__figsize__, figdpi=__figdpi__, chunks=__chunks__, ibytes=__ibytes_dict__):
 
     if not figname:
-        clean_binname = ''.join([c for c in binname if re.match(r'[\w\_\-\.]', c)])
-        figname = 'file_ent-{}.{}'.format(clean_binname, frmt)
-
+        figname = 'bin_ent-{}.{}'.format(clean_fname(binname), frmt)
         log.debug('No name given. Generated: {}'.format(figname))
 
     fh = open(binname, 'rb')
-    log.debug('Opening: {}'.format(binname))
+    log.debug('Opening: "{}"'.format(binname))
 
     # # Calculate the overall chunksize 
     fs = os.fstat(fh.fileno()).st_size
@@ -213,6 +218,8 @@ def bin_ent(binname, frmt=__figformat__, figname=None, figsize=__figsize__, figd
 
                 byte_ranges[label].append((float(occurance)/float(len(chunk)))*100)
 
+    fh.close()
+    log.debug('Closed: "{}"'.format(binname))
 
     # # Draw the graphs in order
     zorder=99
@@ -226,12 +233,14 @@ def bin_ent(binname, frmt=__figformat__, figname=None, figsize=__figsize__, figd
     host.set_ylim([0, 1.05])
 
     log.debug('Plotting shannon samples')
-    host.plot(shannon_samples, label='Entropy', c=section_colour('Entropy'), zorder=zorder, linewidth=0.7)
+    host.plot(shannon_samples, label='Entropy', c=section_colour('Entropy'), zorder=zorder, linewidth=1)
 
     host.set_ylabel('Entropy\n'.format(chunksize))
     host.set_xlabel('Raw file offset')
     host.xaxis.set_major_formatter(ticker.FuncFormatter(lambda x, pos: ('0x%x') % (int(x * nr_chunksize)))) 
     host.xaxis.set_major_locator(MaxNLocator(10))
+    plt.xticks(rotation=-10, ha='left')
+
 
     # # Plot individual byte percentages
     if len(ibytes) > 0:
@@ -297,7 +306,7 @@ def bin_ent(binname, frmt=__figformat__, figname=None, figsize=__figsize__, figd
     fig.figimage(logo, alpha=.5, zorder=99)
 
     plt.savefig(fname=figname, format=frmt, bbox_inches='tight')
-    log.debug('Saved to: {}.{}'.format(figname, frmt))
+    log.debug('Saved to: "{}"'.format(figname))
 
     if False:
         plt.show()
@@ -432,28 +441,32 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('-f', '--file', type=str, required=True, nargs='+', metavar='file.exe', help='Give me an entropy graph of this file!')
-    parser.add_argument('-o', '--out', type=str, help='Graph output prefix - without extension!')
+    parser.add_argument('-f', '--file', type=str, required=True, nargs='+', metavar='malware.exe', help='Give me a graph of this file. See - if this is the only argument specified.')
+    parser.add_argument('-', dest='__dummy', action="store_true", help='*** Required if --file or -f is the only argument given before a graph type is given (it\'s greedy!). E.g. "binGraph.py --file mal.exe - bin_ent"')
+    parser.add_argument('-p', '--prefix', type=str, help='Saved graph output filename (without extension)')
+    parser.add_argument('-d', '--save_dir', type=str, default=os.getcwd(), metavar='/data/graphs/', help='Where to save the graph files')
     parser.add_argument('--format', type=str, default=__figformat__, choices=['png', 'pdf', 'ps', 'eps','svg'], required=False, metavar='png', help='Graph output format')
     parser.add_argument('--figsize', type=int, nargs=2, default=__figsize__, metavar='#', help='Figure width and height in inches')
     parser.add_argument('--dpi', type=int, default=__figdpi__, metavar=__figdpi__, help='Figure dpi')
     parser.add_argument('-v', '--verbose', action='store_true', help='Print debug information to stderr')
 
-    parser.add_argument('-g', action='store_true', help='Graph type') # Pretty a dummy argument - required due to the --file arg being greedy
-    subparsers = parser.add_subparsers(dest='graphtype')
+
+    subparsers = parser.add_subparsers(dest='graphtype', help='Graph type to generate')
     subparsers.required = True
 
-    # # Arguments for the bytehist graph
-    parser_bin_hist = subparsers.add_parser('bin_hist')
-    parser_bin_hist.add_argument('--ignore_0', action='store_true', default=__ignore_0__, help='Remove x00 from the graph, sometimes this blows other results due to there being numerous amounts - also see --log')
-    parser_bin_hist.add_argument('--bins', type=int, default=__bins__, metavar=__bins__, help='Sample bins')
-    parser_bin_hist.add_argument('--log', type=int, default=__log__, metavar=__log__, help='Amount of \'log\' to apply to the graph')
-    parser_bin_hist.add_argument('--ordered', action='store_true', default=__ordered__, help='Add an ordered histogram - show overall distribution')
+    parser_all = subparsers.add_parser('all')
 
     # # Arguments for the ent graph
     parser_bin_ent = subparsers.add_parser('bin_ent')
     parser_bin_ent.add_argument('-c','--chunks', type=int, default=__chunks__, metavar='72', help='Figure dpi')
     parser_bin_ent.add_argument('--ibytes', type=str, default=__ibytes__, metavar='\"{\\\"0\'s\\\": [0] , \\\"Exploit\\\": [44, 144] }\"', help='JSON of bytes to include in the graph')
+
+    # # Arguments for the bytehist graph
+    parser_bin_hist = subparsers.add_parser('bin_hist')
+    parser_bin_hist.add_argument('--ignore_0', action='store_true', default=__ignore_0__, help='Remove x00 from the graph, sometimes this blows other results due to there being numerous amounts - also see --log')
+    parser_bin_hist.add_argument('--bins', type=int, default=__bins__, metavar=__bins__, help='Sample bins')
+    parser_bin_hist.add_argument('--log', type=int, default=__g_log__, metavar=__g_log__, help='Amount of \'log\' to apply to the graph')
+    parser_bin_hist.add_argument('--ordered', action='store_true', default=__ordered__, help='Add an ordered histogram - show overall distribution')
 
     args = parser.parse_args()
 
@@ -467,36 +480,70 @@ if __name__ == '__main__':
 
     log = logging.getLogger('binGraph')
 
-    # # Does the file exist?
+    # # Do the files exist?
     files = []
     for f in args.file:
+
         if not os.path.isfile(f):
-            log.critical('Not a file, skipping: {}'.format(f))
+            log.critical('Not a file, skipping: "{}"'.format(f))
         else:
-            log.debug('File exists: {}'.format(f))
+            log.debug('File exists: "{}"'.format(f))
             files.append(f)
+
+    # # Is the save_dir actually a dirctory?
+    args.save_dir = os.path.abspath(args.save_dir)
+    if not os.path.isdir(args.save_dir):
+        log.critical('--save_dir ({}), is not a directory...'.format(args.save_dir))
+        exit(1)
+    else:
+        log.debug('Saving graphs to directory "{}"'.format(args.save_dir))
+
+    # # Detect if all graphs are being requested + set required defaults
+    graph_types = []
+    if args.graphtype == 'all':
+
+        graph_types.append('bin_ent')
+        args.ibytes = __ibytes__
+
+        graph_types.append('bin_hist')
+        args.ignore_0 = __ignore_0__
+        args.bins = __bins__
+        args.log = __g_log__
+        args.ordered = __ordered__
+
+    else:
+        graph_types = [args.graphtype]
 
     # # Iterate over all given files
     for index, file in enumerate(files):
 
-        if len(args.file) > 0 and args.out:
-            out_fname = ''.join([c for c in os.path.basename(file) if re.match(r'[\w\d\_\-\.]', c)])
-            out_fname = '{}-{}-{}-{}-{}_{}.{}'.format(args.out, out_fname, args.graphtype, 'x'.join(map(str, args.figsize)), args.dpi, index, args.format)
-        elif not args.out:
-            out_fname = ''.join([c for c in os.path.basename(file) if re.match(r'[\w\d\_\-\.]', c)])
-            out_fname = '{}-{}-{}-{}_{}.{}'.format(out_fname, args.graphtype, 'x'.join(map(str, args.figsize)), args.dpi, index, args.format)
-        else:
-            out_fname = args.out
+        log.debug('+++ Processing: "{}"'.format(file))
 
-        log.debug('[+++] Generating: {}'.format(out_fname))
+        clean_fn = clean_fname(os.path.basename(file))
 
-        if args.graphtype == 'bin_ent':
-            ibytes = json.loads(args.ibytes)
-            bin_ent(binname=file, frmt=args.format, figname=out_fname, figsize=(args.figsize[0], args.figsize[1]), figdpi=args.dpi, ibytes=ibytes)
-        elif args.graphtype == 'bin_hist':
-            bin_hist(binname=file, frmt=args.format, figname=out_fname, figsize=(args.figsize[0], args.figsize[1]), figdpi=args.dpi, ignore_0=args.ignore_0, bins=args.bins, g_log=args.log, ordered=args.ordered)
+        if len(args.file) > 0 and args.prefix:
+            save_fn = '{arg_prefix}-{clean_fn}-{{}}-{figsize}_{dpi}-{index}.{format}'.format(arg_prefix=args.prefix, clean_fn=clean_fn, figsize='x'.join(map(str, args.figsize)), dpi=args.dpi, index=index, format=args.format)
+        elif len(args.file) > 0 and not args.prefix:
+            save_fn = '{clean_fn}-{{}}-{figsize}_{dpi}-{index}.{format}'.format(clean_fn=clean_fn, figsize='x'.join(map(str, args.figsize)), dpi=args.dpi, index=index, format=args.format)
 
-        log.debug('[+++] Done: {}'.format(out_fname))
+        elif len(args.file) == 1 and args.prefix:
+            save_fn = '{arg_prefix}.{format}'.format(arg_prefix=args.prefix, format=args.format)
+        elif len(args.file) == 1 and not args.prefix:
+            save_fn = '{clean_fn}-{{}}-{figsize}_{dpi}-{index}.{format}'.format(clean_fn=clean_fn, figsize='x'.join(map(str, args.figsize)), dpi=args.dpi, index=index, format=args.format)
+
+        save_fn = os.path.join(args.save_dir, save_fn)
+
+        if 'bin_ent' in graph_types:
+            __save_fn__ = save_fn.format('bin_ent')
+            log.debug('+ Generating bin_ent from "{}"'.format(file))
+            bin_ent(binname=file, frmt=args.format, figname=__save_fn__, figsize=(args.figsize[0], args.figsize[1]), figdpi=args.dpi, ibytes=json.loads(args.ibytes))
+
+        if 'bin_hist' in graph_types:
+            __save_fn__ = save_fn.format('bin_hist')
+            log.debug('+ Generating bin_hist from "{}"'.format(file))
+            bin_hist(binname=file, frmt=args.format, figname=__save_fn__, figsize=(args.figsize[0], args.figsize[1]), figdpi=args.dpi, ignore_0=args.ignore_0, bins=args.bins, g_log=args.log, ordered=args.ordered)
+
+        log.debug('+++ Complete: "{}"'.format(file))
 
 
 
