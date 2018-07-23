@@ -56,7 +56,7 @@ optional arguments:
 
 **Binary Histogram** - bin_hist - Provides an insight into the occurence of all bytes in the file. Two graphs are shown, the red graph shows the bytes 0x00 to 0xFF in order. The blue graph shows the same bytes, ordered by count, this shows the overall distribution.
 
-![Binary byte histogram](public/example-bin_hist.png "Binary byte histogram")
+![Binary byte histogram](blob/example-bin_hist.png "Binary byte histogram")
 !MALWARE! Sample from: https://cape[.]contextis[.]com/file/CAPE/9472/ad5a729e7c4047c946601e5533b1dfa3983a0d84da61b743dda1ca3b1c956ec5/
 ```
 $ python binGraph.py bin_hist --help
