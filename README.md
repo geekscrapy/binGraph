@@ -5,7 +5,7 @@ Allows you to create matplotlib graphs to represent different aspects of a file 
 
 Given a file(s) (with ```--file```) different graphs can be generated (e.g. ```bin_ent```, ```bin_hist``` etc.) or ```all``` can be used to generate all the graphs available for that file.
 
-Below are the ```--help ```.
+Below are the ```--help ``` options:
 
 ```
 $ python binGraph.py --help
