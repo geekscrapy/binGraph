@@ -20,6 +20,7 @@ import os, re
 import json
 import sys
 
+__version__ = 1.0
 if sys.version_info[0] < 3:
     raise Exception('Must use Python 3')
 
@@ -137,6 +138,7 @@ def bin_hist(binname, frmt=__figformat__, figname=None, figsize=__figsize__, fig
         ax.bar((range(ignore_0,256)), sorted_row, bins, label='Ordered', color='b', log=g_log, zorder=1, alpha=.5)
         log.info('Graphed ordered binary array')
 
+    # # Formatting and watermarking
     ax.xaxis.set_major_formatter(ticker.FuncFormatter(lambda x, pos: ('0x%x') % (int(x))))
     ax.xaxis.set_major_locator(MaxNLocator(20))
     ax.set_xlabel('Bytes')
@@ -144,11 +146,12 @@ def bin_hist(binname, frmt=__figformat__, figname=None, figsize=__figsize__, fig
 
     plt.legend(loc=(1.03, 0.9))
 
-    fig.suptitle('Byte histogram: {}'.format(os.path.basename(binname)), horizontalalignment='center', verticalalignment='top')
+    fig.suptitle('Byte histogram: {}'.format(os.path.basename(binname)), ha='center', va='top')
+
     fig.subplots_adjust(hspace=0.5)
 
-    logo = plt.imread(os.path.dirname(os.path.realpath(__file__))+'/cape.png')
-    fig.figimage(logo, alpha=.5, zorder=99)
+    credit = plt.imread(os.path.dirname(os.path.realpath(__file__))+'/credit.png')
+    fig.figimage(credit, alpha=.5, zorder=99)
 
     fig.tight_layout(rect=[0, 0.03, 1, 0.95])
 
@@ -295,7 +298,7 @@ def bin_ent(binname, frmt=__figformat__, figname=None, figsize=__figsize__, figd
             log.info('Not currently customised: {}'.format(exebin.format))
 
 
-    # Add legends
+    # # Add legends
     if len(ibytes) > 0:
         host.legend(loc=(1.1, 0.9))
     else:
@@ -304,11 +307,11 @@ def bin_ent(binname, frmt=__figformat__, figname=None, figsize=__figsize__, figd
     if len(ibytes) > 0:
         axBytePc.legend(loc=(1.1, 0.5))
 
-    logo = plt.imread(os.path.dirname(os.path.realpath(__file__))+'/cape.png')
-
+    # # Add watermark
     fig.suptitle('Binary entropy (sampled over {} byte chunks): {}'.format(chunksize, os.path.basename(binname)), horizontalalignment='center', verticalalignment='top', y=0.93)
-    fig.subplots_adjust(hspace=0.5)
-    fig.figimage(logo, alpha=.5, zorder=99)
+
+    credit = plt.imread(os.path.dirname(os.path.realpath(__file__))+'/credit.png')
+    fig.figimage(credit, alpha=.5, zorder=99)
 
     fig.tight_layout(rect=[0, 0, 1, 0.76])
 
