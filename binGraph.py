@@ -536,7 +536,7 @@ if __name__ == '__main__':
         if 'bin_ent' in graph_types:
             __save_fn__ = save_fn.format('bin_ent')
             log.debug('+ Generating bin_ent from "{}"'.format(file))
-            bin_ent(binname=file, frmt=args.format, figname=__save_fn__, figsize=(args.figsize[0], args.figsize[1]), figdpi=args.dpi, ibytes=json.loads(args.ibytes))
+            bin_ent(binname=file, frmt=args.format, figname=__save_fn__, figsize=(args.figsize[0], args.figsize[1]), figdpi=args.dpi, chunks=args.chunks, ibytes=json.loads(args.ibytes))
 
         if 'bin_hist' in graph_types:
             __save_fn__ = save_fn.format('bin_hist')
