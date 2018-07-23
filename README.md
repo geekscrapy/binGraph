@@ -11,7 +11,7 @@ Below are the ```--help ``` options:
 $ python binGraph.py --help
 usage: binGraph.py [-h] -f malware.exe [malware.exe ...] [-] [-p PREFIX]
                    [-d /data/graphs/] [--format png] [--figsize # #]
-                   [--dpi 100] [-v]
+                   [--dpi 100] [--showplt] [-v]
                    {all,bin_ent,bin_hist} ...
 
 positional arguments:
@@ -33,10 +33,12 @@ optional arguments:
   --format png          Graph output format
   --figsize # #         Figure width and height in inches
   --dpi 100             Figure dpi
+  --showplt             Show plot interactively (disables saving to file)
   -v, --verbose         Print debug information to stderr
 ```
 
-**Binary Entropy** - bin_ent - Shows the entropy over certain sized chunked samples of the binary file. The sample size is scaled to the ```--chunks``` option (defaults to 750). More chunks give mode detail, but can get messy! The ```--ibytes``` option provides a method to highlight certain bytes and their occurence within that sample set. This often has direct reflection to why entropy goes up or down - lots of 0's? Entropy goes down, and 0's go up!
+## Binary Entropy - bin_ent
+Shows the entropy over certain sized chunked samples of the binary file. The sample size is scaled to the ```--chunks``` option (defaults to 750). More chunks give mode detail, but can get messy! The ```--ibytes``` option provides a method to highlight certain bytes and their occurence within that sample set. This often has direct reflection to why entropy goes up or down - lots of 0's? Entropy goes down, and 0's go up!
 
 ![Binary entropy graph](example-bin_ent.png "Binary entropy graph - from PE executable")
 !MALWARE! Sample from: https://cape[.]contextis[.]com/file/CAPE/9472/ad5a729e7c4047c946601e5533b1dfa3983a0d84da61b743dda1ca3b1c956ec5/
@@ -54,7 +56,8 @@ optional arguments:
                         JSON of bytes to include in the graph
 ```
 
-**Binary Histogram** - bin_hist - Provides an insight into the occurence of all bytes in the file. Two graphs are shown, the red graph shows the bytes 0x00 to 0xFF in order. The blue graph shows the same bytes, ordered by count, this shows the overall distribution.
+## Binary Histogram - bin_hist
+Provides an insight into the occurence of all bytes in the file. Two graphs are shown, the red graph shows the bytes 0x00 to 0xFF in order. The blue graph shows the same bytes, ordered by count, this shows the overall distribution.
 
 ![Binary byte histogram](example-bin_hist.png "Binary byte histogram")
 !MALWARE! Sample from: https://cape[.]contextis[.]com/file/CAPE/9472/ad5a729e7c4047c946601e5533b1dfa3983a0d84da61b743dda1ca3b1c956ec5/
