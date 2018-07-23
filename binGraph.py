@@ -326,7 +326,7 @@ def bin_ent(binname, frmt=__figformat__, figname=None, figsize=__figsize__, figd
     plt.cla()
     plt.close()
 
-
+# CURRENTLY DISABLED
 def section_graphs():
     # ## Ent per section
     # # -------------------------------------------
