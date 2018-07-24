@@ -122,7 +122,7 @@ def bin_hist(binname, frmt=__figformat__, figname=None, figsize=__figsize__, fig
     for x in range(ignore_0, 256):
         ordered_row.append(c[x])
 
-    ax.bar((range(ignore_0, 256)), ordered_row, bins, label='Bytes', color='r', log=g_log, zorder=0)
+    ax.bar((range(ignore_0, 256)), ordered_row, bins, label='Byte', color='r', log=g_log, zorder=0)
     log.info('Graphed binary array')
 
     # # Add a byte hist ordered by occurrence - shows general distribution
@@ -178,12 +178,14 @@ def bin_hist(binname, frmt=__figformat__, figname=None, figsize=__figsize__, fig
 # # chunks int: how many chunks to split the file over. Smaller chunks give a more averaged graph, a larger number of chunks give more detail
 # # ibytes dicts of lists: a dict of interesting bytes wanting to be displayed on the graph. These can often show relationships and reason for dips or
 # #                        increases in entropy at particular points. Bytes within each type are defined as lists of _decimals_, _not_ hex.
+# # blob boolean: Whether to intelligently parse and add file format specific features to the graph. Treat all files as binary blobs
 
 # # Global variables specific to function
 __chunks__ = 750
 __ibytes__= '{"0\'s": [0], "Printable ASCII": [32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126], "Exploit": [44, 144]}'
 __ibytes_dict__ = json.loads(__ibytes__)
-def bin_ent(binname, frmt=__figformat__, figname=None, figsize=__figsize__, figdpi=__figdpi__, chunks=__chunks__, ibytes=__ibytes_dict__, showplt=__showplt__):
+__blob__ = False
+def bin_ent(binname, frmt=__figformat__, figname=None, figsize=__figsize__, figdpi=__figdpi__, chunks=__chunks__, ibytes=__ibytes_dict__, blob=__blob__, showplt=__showplt__):
 
     if not figname:
         figname = 'bin_ent-{}.{}'.format(clean_fname(binname), frmt)
@@ -266,36 +268,37 @@ def bin_ent(binname, frmt=__figformat__, figname=None, figsize=__figsize__, figd
             axBytePc.plot(percentages, label=label, c=c, zorder=zorder, linewidth=0.7, alpha=0.75)
 
     # # Filetype specific additions
-    try:
-        exebin = lief.parse(filepath=binname)
-        log.info('Parsed with lief as {}'.format(exebin.format))
+    if not blob:
+        try:
+            exebin = lief.parse(filepath=binname)
+            log.info('Parsed with lief as {}'.format(exebin.format))
 
-    except Exception as e:
-        exebin = None
-        log.info('Failed to parse with lief: {}'.format(e))
+        except Exception as e:
+            exebin = None
+            log.info('Failed to parse with lief: {}'.format(e))
 
-    if exebin:
-        if type(exebin) == lief.PE.Binary:
+        if exebin:
+            if type(exebin) == lief.PE.Binary:
 
-            log.info('Adding PE customisations')
+                log.info('Adding PE customisations')
 
-            # # Entrypoint (EP) pointer and vline
-            v_ep = exebin.va_to_offset(exebin.entrypoint) / nr_chunksize
-            host.axvline(x=v_ep, linestyle='--', c='r')
-            host.text(x=v_ep, y=1.07, s='EP', rotation=45, verticalalignment='bottom', horizontalalignment='left')
+                # # Entrypoint (EP) pointer and vline
+                v_ep = exebin.va_to_offset(exebin.entrypoint) / nr_chunksize
+                host.axvline(x=v_ep, linestyle='--', c='r')
+                host.text(x=v_ep, y=1.07, s='EP', rotation=45, verticalalignment='bottom', horizontalalignment='left')
 
-            # # Section vlines
-            for index, section in enumerate(exebin.sections):
+                # # Section vlines
+                for index, section in enumerate(exebin.sections):
 
-                log.info('{}: {}'.format(fix_section_name(section, index), section.offset))
+                    log.info('{}: {}'.format(fix_section_name(section, index), section.offset))
 
-                section_offset = section.offset / nr_chunksize
+                    section_offset = section.offset / nr_chunksize
 
-                host.axvline(x=section_offset, linestyle='--')
-                host.text(x=section_offset, y=1.07, s=fix_section_name(section, index), rotation=45, verticalalignment='bottom', horizontalalignment='left')
+                    host.axvline(x=section_offset, linestyle='--')
+                    host.text(x=section_offset, y=1.07, s=fix_section_name(section, index), rotation=45, ha='left', va='bottom')
 
-        else:
-            log.info('Not currently customised: {}'.format(exebin.format))
+            else:
+                log.info('Not currently customised: {}'.format(exebin.format))
 
 
     # # Add legends
@@ -307,13 +310,14 @@ def bin_ent(binname, frmt=__figformat__, figname=None, figsize=__figsize__, figd
     if len(ibytes) > 0:
         axBytePc.legend(loc=(1.1, 0.5))
 
-    # # Add watermark
-    fig.suptitle('Binary entropy (sampled over {} byte chunks): {}'.format(chunksize, os.path.basename(binname)), horizontalalignment='center', verticalalignment='top', y=0.93)
+    # # Add title
+    fig.suptitle('Binary entropy (sampled over {} byte chunks): {}'.format(chunksize, os.path.basename(binname)), ha='center', va='top', y=(0.95 if blob else 1))
 
+    # # Add watermark
     credit = plt.imread(os.path.dirname(os.path.realpath(__file__))+'/credit.png')
     fig.figimage(credit, alpha=.5, zorder=99)
 
-    fig.tight_layout(rect=[0, 0, 1, 0.76])
+    fig.tight_layout(rect=[0, 0, 1, (0.92 if blob else 0.88)])
 
     if showplt:
         log.info('Opening graph interactively')
@@ -470,7 +474,8 @@ if __name__ == '__main__':
     # # Arguments for the ent graph
     parser_bin_ent = subparsers.add_parser('bin_ent')
     parser_bin_ent.add_argument('-c','--chunks', type=int, default=__chunks__, metavar='750', help='Defines how many chunks the binary is split into (and therefore the amount of bytes submitted for shannon sampling per time). Higher number gives more detail')
-    parser_bin_ent.add_argument('--ibytes', type=str, default=__ibytes__, metavar='\"{\\\"0\'s\\\": [0] , \\\"Exploit\\\": [44, 144] }\"', help='JSON of bytes to include in the graph')
+    parser_bin_ent.add_argument('--ibytes', type=str, nargs='?', default=__ibytes__, metavar='\"{\\\"0\'s\\\": [0] , \\\"Exploit\\\": [44, 144] }\"', help='JSON of bytes to include in the graph. To disable this option, either set the flag without an argument, or set value to "{}"')
+    parser_bin_ent.add_argument('--blob', action='store_true', help='Do not intelligently parse certain file types. Treat all files as a binary blob. E.g. don\'t add PE entry point or section splitter to the graph')
 
     # # Arguments for the bytehist graph
     parser_bin_hist = subparsers.add_parser('bin_hist')
@@ -516,6 +521,7 @@ if __name__ == '__main__':
         graph_types.append('bin_ent')
         args.ibytes = __ibytes__
         args.chunks = __chunks__
+        args.blob = __blob__
 
         graph_types.append('bin_hist')
         args.ignore_0 = __ignore_0__
@@ -549,8 +555,13 @@ if __name__ == '__main__':
 
         if 'bin_ent' in graph_types:
             __save_fn__ = save_fn.format('bin_ent')
+
+            # Disable ibytes if user has supplied the flag but not a value
+            if args.ibytes == None:
+                args.ibytes = '{}'
+
             log.info('+ Generating bin_ent from "{}"'.format(file))
-            bin_ent(binname=file, frmt=args.format, figname=__save_fn__, figsize=(args.figsize[0], args.figsize[1]), figdpi=args.dpi, chunks=args.chunks, ibytes=json.loads(args.ibytes), showplt=args.showplt)
+            bin_ent(binname=file, frmt=args.format, figname=__save_fn__, figsize=(args.figsize[0], args.figsize[1]), figdpi=args.dpi, chunks=args.chunks, ibytes=json.loads(args.ibytes), blob=args.blob, showplt=args.showplt)
 
         if 'bin_hist' in graph_types:
             __save_fn__ = save_fn.format('bin_hist')
