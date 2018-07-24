@@ -246,7 +246,7 @@ def bin_ent(binname, frmt=__figformat__, figname=None, figsize=__figsize__, figd
     host.set_ylim([0, 1.05])
 
     log.debug('Plotting shannon samples')
-    host.plot(shannon_samples, label='Entropy', c=section_colour('Entropy'), zorder=1001, linewidth=1.5)
+    host.plot(shannon_samples, label='Entropy', c=section_colour('Entropy'), zorder=1001, linewidth=1)
 
     host.set_ylabel('Entropy\n'.format(chunksize))
     host.set_xlabel('Raw file offset')
@@ -287,17 +287,18 @@ def bin_ent(binname, frmt=__figformat__, figname=None, figsize=__figsize__, figd
 
             # # Entrypoint (EP) pointer and vline
             v_ep = exebin.va_to_offset(exebin.entrypoint) / nr_chunksize
-            host.axvline(x=v_ep, linestyle='--', c='r', zorder=1002)
+            host.axvline(x=v_ep, linestyle=':', c='r', zorder=zorder-1)
             host.text(x=v_ep, y=1.07, s='EP', rotation=45, va='bottom', ha='left')
 
             # # Section vlines
             for index, section in enumerate(exebin.sections):
+                zorder -= 1
 
                 log.debug('{}: {}'.format(fix_section_name(section, index), section.offset))
 
                 section_offset = section.offset / nr_chunksize
 
-                host.axvline(x=section_offset, linestyle='--')
+                host.axvline(x=section_offset, linestyle='--', zorder=zorder)
                 host.text(x=section_offset, y=1.07, s=fix_section_name(section, index), rotation=45, va='bottom', ha='left')
 
         else:
