@@ -236,8 +236,6 @@ def bin_ent(binname, frmt=__figformat__, figname=None, figsize=__figsize__, figd
     fh.close()
     log.debug('Closed: "{}"'.format(binname))
 
-    # # Draw the graphs in order
-    zorder=99
 
     # # Create the original figure
     fig, host = plt.subplots(figsize=figsize, dpi=figdpi)
@@ -248,13 +246,16 @@ def bin_ent(binname, frmt=__figformat__, figname=None, figsize=__figsize__, figd
     host.set_ylim([0, 1.05])
 
     log.debug('Plotting shannon samples')
-    host.plot(shannon_samples, label='Entropy', c=section_colour('Entropy'), zorder=zorder, linewidth=1)
+    host.plot(shannon_samples, label='Entropy', c=section_colour('Entropy'), zorder=1001, linewidth=1.5)
 
     host.set_ylabel('Entropy\n'.format(chunksize))
     host.set_xlabel('Raw file offset')
     host.xaxis.set_major_formatter(ticker.FuncFormatter(lambda x, pos: ('0x%x') % (int(x * nr_chunksize)))) 
     host.xaxis.set_major_locator(MaxNLocator(10))
-    plt.xticks(rotation=-10, horizontalalignment='left')
+    plt.xticks(rotation=-10, ha='left')
+
+    # # Draw the graphs in order
+    zorder=1000
 
     # # Plot individual byte percentages
     if len(ibytes) > 0:
@@ -266,7 +267,7 @@ def bin_ent(binname, frmt=__figformat__, figname=None, figsize=__figsize__, figd
         axBytePc.yaxis.set_major_formatter(ticker.FuncFormatter(lambda x, pos: ('%i%%') % (x)))
 
         for label, percentages in byte_ranges.items():
-            zorder -= zorder
+            zorder -= 1
             c = section_colour(label)
             axBytePc.plot(percentages, label=label, c=c, zorder=zorder, linewidth=0.7, alpha=0.75)
 
@@ -286,8 +287,8 @@ def bin_ent(binname, frmt=__figformat__, figname=None, figsize=__figsize__, figd
 
             # # Entrypoint (EP) pointer and vline
             v_ep = exebin.va_to_offset(exebin.entrypoint) / nr_chunksize
-            host.axvline(x=v_ep, linestyle='--', c='r')
-            host.text(x=v_ep, y=1.07, s='EP', rotation=45, verticalalignment='bottom', horizontalalignment='left')
+            host.axvline(x=v_ep, linestyle='--', c='r', zorder=1002)
+            host.text(x=v_ep, y=1.07, s='EP', rotation=45, va='bottom', ha='left')
 
             # # Section vlines
             for index, section in enumerate(exebin.sections):
@@ -297,7 +298,7 @@ def bin_ent(binname, frmt=__figformat__, figname=None, figsize=__figsize__, figd
                 section_offset = section.offset / nr_chunksize
 
                 host.axvline(x=section_offset, linestyle='--')
-                host.text(x=section_offset, y=1.07, s=fix_section_name(section, index), rotation=45, verticalalignment='bottom', horizontalalignment='left')
+                host.text(x=section_offset, y=1.07, s=fix_section_name(section, index), rotation=45, va='bottom', ha='left')
 
         else:
             log.debug('Not currently customised: {}'.format(exebin.format))
@@ -313,7 +314,7 @@ def bin_ent(binname, frmt=__figformat__, figname=None, figsize=__figsize__, figd
         axBytePc.legend(loc=(1.1, 0.5))
 
     # # Add watermark
-    fig.suptitle('Binary entropy (sampled over {} byte chunks): {}'.format(chunksize, os.path.basename(binname)), horizontalalignment='center', verticalalignment='top', y=0.93)
+    fig.suptitle('Binary entropy (sampled over {} byte chunks): {}'.format(chunksize, os.path.basename(binname)), ha='center', va='top', y=0.93)
 
     credit = plt.imread(os.path.dirname(os.path.realpath(__file__))+'/credit.png')
     fig.figimage(credit, alpha=.5, zorder=99)
@@ -509,39 +510,22 @@ if __name__ == '__main__':
             for dir_name, dirs, files in os.walk(f):
                 log.debug('Found directory: {}'.format(dir_name))
 
-                asbpath = os.path.join(f, dir_name)
-
                 for fname in files:
 
-                    absfile = os.path.join(asbpath, fname)
-                    log.info('File found: "{}"'.format(absfile))
-                    _files.append(absfile)
+                    absfile = os.path.join(dir_name, fname)
 
+                    if os.path.isfile(absfile) and not os.path.islink(absfile) and not os.stat(absfile).st_size == 0:
 
-        elif os.path.isfile(f):
+                        log.info('File found: "{}"'.format(absfile))
+                        _files.append(absfile)
+
+        elif os.path.isfile(f) and not os.path.islink(f) and not os.stat(f).st_size == 0:
+
             log.info('File exists: "{}"'.format(f))
             _files.append(f)
+
         else:
             log.critical('Not a file, skipping: "{}"'.format(f))
-
-    # Skip empty files
-    _new_files = []
-    for file in _files:
-
-        if os.path.islink(file):
-            new_file = os.readlink(file)
-            log.critical('Following symlink "{}" > "{}"'.format(file, new_file))
-            file = new_file
-
-        try:
-            if not os.stat(file).st_size == 0:
-                _new_files.append(file)
-            else:
-                log.critical('Skipping empty file: "{}"'.format(file))
-        except:
-            log.warning('Skipping file: "{}"'.format(file))
-
-    _files = _new_files
 
 
     # # Is the save_dir actually a dirctory?
