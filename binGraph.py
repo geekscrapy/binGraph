@@ -1,4 +1,6 @@
-#!/usr/bin/python
+#!/usr/bin/env python
+
+from __future__ import division
 
 import lief
 
@@ -8,7 +10,6 @@ import matplotlib.ticker as ticker
 from matplotlib.ticker import MaxNLocator
 
 from matplotlib import colors
-from scipy.stats import entropy
 
 from collections import Counter
 import numpy as np
@@ -20,13 +21,11 @@ import os, re
 import json
 import sys
 
-__version__ = 1.0
-if sys.version_info[0] < 3:
-    raise Exception('Must use Python 3')
+__pyver__ = sys.version_info[0]
 
 # # Helper functions
 def shannon_ent(labels, base=256):
-    value,counts = np.unique(labels, return_counts=True)
+    value, counts = np.unique(labels, return_counts=True)
     norm_counts = counts / counts.sum()
     base = e if base is None else base
     return -(norm_counts * np.log(norm_counts)/np.log(base)).sum()
@@ -43,6 +42,7 @@ def section_colour(text, multi=False):
         np.random.seed(int(name_colour)-255)
         colour_second = np.random.rand(3,)
         return colour_main, colour_second
+
     else:
         return colour_main
 
@@ -50,7 +50,6 @@ def section_colour(text, multi=False):
 def fix_section_name(section, index):
         s_name = section.name
         if s_name == '' or s_name == None:
-            print(str(index))
             s_name = 'sect_'+str(index)
         return s_name
 
@@ -58,6 +57,10 @@ def fix_section_name(section, index):
 def get_chunk(fh, chunksize=8192):
     while True:
         chunk = fh.read(chunksize)
+
+        # # Conver to bytearray if python version 2
+        chunk = bytearray(chunk) if __pyver__ < 3 else chunk
+
         if chunk:
             yield list(chunk)
         else:
@@ -159,7 +162,7 @@ def bin_hist(binname, frmt=__figformat__, figname=None, figsize=__figsize__, fig
         log.debug('Opening graph interactively')
         plt.show()
     else:
-        plt.savefig(fname=figname, format=frmt, bbox_inches='tight')
+        plt.savefig(figname, format=frmt, dpi=figdpi, bbox_inches='tight')
         log.debug('Saved to: "{}"'.format(figname))
 
     plt.clf()
@@ -189,51 +192,50 @@ def bin_ent(binname, frmt=__figformat__, figname=None, figsize=__figsize__, figd
         figname = 'bin_ent-{}.{}'.format(clean_fname(binname), frmt)
         log.debug('No name given. Generated: {}'.format(figname))
 
-    fh = open(binname, 'rb')
-    log.debug('Opening: "{}"'.format(binname))
+    with open(binname, 'rb') as fh:
+        log.debug('Opening: "{}"'.format(binname))
 
-    # # Calculate the overall chunksize 
-    fs = os.fstat(fh.fileno()).st_size
-    if chunks > fs:
-        chunksize = 1
-        nr_chunksize = 1
-    else:
-        chunksize = -(-fs // chunks)
-        nr_chunksize = fs / chunks
+        # # Calculate the overall chunksize 
+        fs = os.fstat(fh.fileno()).st_size
+        if chunks > fs:
+            chunksize = 1
+            nr_chunksize = 1
+        else:
+            chunksize = -(-fs // chunks)
+            nr_chunksize = fs / chunks
 
-    log.debug('Filesize: {}, Chunksize (rounded): {}, Chunksize: {}, Chunks: {}'.format(fs, chunksize, nr_chunksize, chunks))
+        log.debug('Filesize: {}, Chunksize (rounded): {}, Chunksize: {}, Chunks: {}'.format(fs, chunksize, nr_chunksize, chunks))
 
-    shannon_samples = []
+        shannon_samples = []
 
-    # # Create byte occurrence dict if required
-    if len(ibytes) > 0:
-        byte_ranges = {key: [] for key in ibytes.keys()}
-
-    log.debug('Going for iteration over bytes with chunksize {}'.format(chunksize))
-    log.debug('Using ibytes: {}'.format(ibytes))
-
-    prev_ent = 0
-    for chunk in get_chunk(fh, chunksize=chunksize):
-
-        # # Calculate ent
-        real_ent = shannon_ent(chunk)
-        ent = statistics.median([real_ent, prev_ent])
-        prev_ent = real_ent
-        ent = real_ent
-        shannon_samples.append(ent)
-
-        # # Calculate percentages of given bytes, if provided
+        # # Create byte occurrence dict if required
         if len(ibytes) > 0:
-            cbytes = Counter(chunk)
-            for label, b_range in ibytes.items():
+            byte_ranges = {key: [] for key in ibytes.keys()}
 
-                occurrence = 0
-                for b in b_range:
-                    occurrence += cbytes[b]
+        log.debug('Going for iteration over bytes with chunksize {}'.format(chunksize))
+        log.debug('Using ibytes: {}'.format(ibytes))
 
-                byte_ranges[label].append((float(occurrence)/float(len(chunk)))*100)
+        prev_ent = 0
+        for chunk in get_chunk(fh, chunksize=chunksize):
 
-    fh.close()
+            # # Calculate ent
+            real_ent = shannon_ent(chunk)
+            ent = statistics.median([real_ent, prev_ent])
+            prev_ent = real_ent
+            ent = real_ent
+            shannon_samples.append(ent)
+
+            # # Calculate percentages of given bytes, if provided
+            if len(ibytes) > 0:
+                cbytes = Counter(chunk)
+                for label, b_range in ibytes.items():
+
+                    occurrence = 0
+                    for b in b_range:
+                        occurrence += cbytes[b]
+
+                    byte_ranges[label].append((float(occurrence)/float(len(chunk)))*100)
+
     log.debug('Closed: "{}"'.format(binname))
 
 
@@ -326,7 +328,7 @@ def bin_ent(binname, frmt=__figformat__, figname=None, figsize=__figsize__, figd
         log.debug('Opening graph interactively')
         plt.show()
     else:
-        plt.savefig(fname=figname, format=frmt, bbox_inches='tight')
+        plt.savefig(figname, format=frmt, dpi=figdpi, bbox_inches='tight')
         log.debug('Saved to: "{}"'.format(figname))
 
     plt.clf()
