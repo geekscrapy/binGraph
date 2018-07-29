@@ -113,13 +113,6 @@ def bin_hist(binname, frmt=__figformat__, figname=None, figsize=__figsize__, fig
 
     fig, ax = plt.subplots(figsize=figsize, dpi=figdpi)
 
-    if ignore_0:
-        ax.set_xlim(1,255)
-        log.debug('Setting xlim to (1,255)')
-    else:
-        ax.set_xlim(0,255)
-        log.debug('Setting xlim to (0,255)')
-
     # # Add a byte hist ordered 1 > 255
     ordered_row = []
     c = Counter(file_array)
@@ -147,6 +140,16 @@ def bin_hist(binname, frmt=__figformat__, figname=None, figsize=__figsize__, fig
     ax.xaxis.set_major_locator(MaxNLocator(20))
     ax.set_xlabel('Bytes (0x00 included: {}, width {})'.format((True if ignore_0 == 1 else False), width))
     ax.set_ylabel('Occurrence (log {})'.format(g_log))
+
+    # Include 0x00 byte?
+    if ignore_0:
+        ax.set_xlim(1,255)
+        ax.set_xbound(lower=1, upper=255)
+        log.debug('Setting xlim/xbounds to (1,255)')
+    else:
+        ax.set_xlim(0,255)
+        ax.set_xbound(lower=0, upper=255)
+        log.debug('Setting xlim/xbounds to (0,255)')
 
     plt.legend(loc='upper center', ncol=3, bbox_to_anchor=(0.5, 1.07), framealpha=1)
 
@@ -240,10 +243,6 @@ def bin_ent(binname, frmt=__figformat__, figname=None, figsize=__figsize__, figd
     # # Create the original figure
     fig, host = plt.subplots(figsize=figsize, dpi=figdpi)
 
-    # # Plot the entropy graph
-    host.set_xlim([0, len(shannon_samples)+1])
-    host.set_ylim([0, 1.05])
-
     log.debug('Plotting shannon samples')
     host.plot(np.array(shannon_samples), label='Entropy', c=section_colour('Entropy'), zorder=1001, linewidth=1)
 
@@ -261,7 +260,6 @@ def bin_ent(binname, frmt=__figformat__, figname=None, figsize=__figsize__, figd
         log.debug('Plotting ibytes')
 
         axBytePc = host.twinx()
-        axBytePc.set_ylim([-0.3, 101])
         axBytePc.set_ylabel('Occurrence of bytes (%)')
         axBytePc.yaxis.set_major_formatter(ticker.FuncFormatter(lambda x, pos: ('{:d}%'.format(int(x)))))
 
@@ -269,6 +267,9 @@ def bin_ent(binname, frmt=__figformat__, figname=None, figsize=__figsize__, figd
             zorder -= 1
             c = section_colour(label)
             axBytePc.plot(np.array(percentages), label=label, c=c, zorder=zorder, linewidth=0.7, alpha=0.75)
+
+        axBytePc.set_ybound(lower=-0.3, upper=101)
+
 
     # # Filetype specific additions
     try:
@@ -302,6 +303,10 @@ def bin_ent(binname, frmt=__figformat__, figname=None, figsize=__figsize__, figd
 
         else:
             log.debug('Not currently customised: {}'.format(exebin.format))
+
+    # # Plot the entropy graph
+    host.set_xbound(lower=-0.5, upper=len(shannon_samples)+0.5)
+    host.set_ybound(lower=0, upper=1.05)
 
     # # Add legends
     legends = []
