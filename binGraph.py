@@ -79,16 +79,16 @@ __showplt__ = False     # Show the plot interactively
 
 # ## Byte histogram over all file
 # # -------------------------------------------
-# # binname: file to load and analyse
-# # figsize: specify size of the figure ouputted
-# # frmt: output filetype. Can be anything supported by matplotlib - png, svg, jpg
-# # figname: filename to save graph
-# # figsize: size to save figure, (width,height)
+# # binname:        File to load and analyse
+# # figsize:        Specify size of the figure ouputted
+# # frmt:           Output filetype. Can be anything supported by matplotlib - png, svg, jpg
+# # figname:        Filename to save graph
+# # figsize:        Size to save figure, (width,height)
 
-# # ignore_0 bool: Remove 0x00 from the graph, sometimes this blows other results due to there being numerous amounts - also see log
+# # ignore_0 bool:  Remove 0x00 from the graph, sometimes this blows other results due to there being numerous amounts - also see log
 # # width int:      Sample width
-# # g_log bool:       Whether to apply a log scale to occurance axis
-# # ordered bool:  Add an ordered histogram - show overall distribution
+# # g_log bool:     Whether to apply a log scale to occurance axis
+# # no_order bool:  Remove the ordered histogram - show overall distribution
 
 # # Global variables specific to function
 __ignore_0__ = True
@@ -119,7 +119,7 @@ def bin_hist(binname, frmt=__figformat__, figname=None, figsize=__figsize__, fig
     for x in range(ignore_0, 256):
         ordered_row.append(c[x])
 
-    ax.bar(np.array(list(range(ignore_0, 256))), np.array(ordered_row), align='edge', width=width, label='Bytes', color='r', log=g_log, zorder=0)
+    ax.bar(np.array(list(range(ignore_0, 256))), np.array(ordered_row), align='edge', width=width, label='Bytes', color='r', log=g_log, zorder=0, linewidth=0)
     log.debug('Graphed binary array')
 
     # # Add a byte hist ordered by occurrence - shows general distribution
@@ -132,7 +132,7 @@ def bin_hist(binname, frmt=__figformat__, figname=None, figsize=__figsize__, fig
         sorted_row.sort()
         sorted_row.reverse()
 
-        ax.bar(np.array(list(range(ignore_0, 256))), np.array(sorted_row), width=width, label='Ordered', color='b', log=g_log, zorder=1, alpha=.5)
+        ax.bar(np.array(list(range(ignore_0, 256))), np.array(sorted_row), width=width, label='Ordered', color='b', log=g_log, zorder=1, alpha=.5, linewidth=0)
         log.debug('Graphed ordered binary array')
 
     # # Formatting and watermarking
@@ -174,15 +174,15 @@ def bin_hist(binname, frmt=__figformat__, figname=None, figsize=__figsize__, fig
 
 # ## Entropy and byte occurrence analysis over all file
 # # -------------------------------------------
-# # binname: file to load and analyse
-# # figsize: specify size of the figure ouputted
-# # frmt: output filetype. Can be anything supported by matplotlib - png, svg, jpg
-# # figname: filename to save graph
-# # figsize: size to save figure, (width,height)
+# # binname:                File to load and analyse
+# # figsize:                Specify size of the figure ouputted
+# # frmt:                   Output filetype. Can be anything supported by matplotlib - png, svg, jpg
+# # figname:                Filename to save graph
+# # figsize:                Size to save figure, (width,height)
 
-# # chunks int: how many chunks to split the file over. Smaller chunks give a more averaged graph, a larger number of chunks give more detail
-# # ibytes dicts of lists: a dict of interesting bytes wanting to be displayed on the graph. These can often show relationships and reason for dips or
-# #                        increases in entropy at particular points. Bytes within each type are defined as lists of _decimals_, _not_ hex.
+# # chunks int:             How many chunks to split the file over. Smaller chunks give a more averaged graph, a larger number of chunks give more detail
+# # ibytes dicts of lists:  A dict of interesting bytes wanting to be displayed on the graph. These can often show relationships and reason for dips or
+# #                         increases in entropy at particular points. Bytes within each type are defined as lists of _decimals_, _not_ hex.
 
 # # Global variables specific to function
 __chunks__ = 750
