@@ -75,3 +75,7 @@ optional arguments:
   --no_order  Remove the ordered histogram - With it on, it shows the overall
               distribution
 ```
+
+# To do:
+
+- Allow user to explicitly define colour to be used for each ```--ibytes``` value.
