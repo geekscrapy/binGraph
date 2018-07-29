@@ -8,7 +8,6 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import matplotlib.ticker as ticker
 from matplotlib.ticker import MaxNLocator
-
 from matplotlib import colors
 
 from collections import Counter
@@ -20,6 +19,8 @@ import statistics
 import os, re
 import json
 import sys
+
+
 
 __pyver__ = sys.version_info[0]
 
@@ -84,17 +85,17 @@ __showplt__ = False     # Show the plot interactively
 # # figname: filename to save graph
 # # figsize: size to save figure, (width,height)
 
-# # ignore_0 bool: Remove x00 from the graph, sometimes this blows other results due to there being numerous amounts - also see log
-# # bins int:      Sample bins
-# # g_log int:       Amount of 'log' to apply to the graph
+# # ignore_0 bool: Remove 0x00 from the graph, sometimes this blows other results due to there being numerous amounts - also see log
+# # width int:      Sample width
+# # g_log bool:       Whether to apply a log scale to occurance axis
 # # ordered bool:  Add an ordered histogram - show overall distribution
 
 # # Global variables specific to function
 __ignore_0__ = True
-__bins__ = 1
-__g_log__ = 1
+__width__ = 1
+__g_log__ = True
 __no_order__ = True
-def bin_hist(binname, frmt=__figformat__, figname=None, figsize=__figsize__, figdpi=__figdpi__, ignore_0=__ignore_0__, bins=__bins__, g_log=__g_log__, ordered=__no_order__, showplt=__showplt__):
+def bin_hist(binname, frmt=__figformat__, figname=None, figsize=__figsize__, figdpi=__figdpi__, ignore_0=__ignore_0__, width=__width__, g_log=__g_log__, ordered=__no_order__, showplt=__showplt__):
 
     if not figname:
         figname = 'bin_hist-{}.{}'.format(clean_fname(binname), frmt)
@@ -102,7 +103,7 @@ def bin_hist(binname, frmt=__figformat__, figname=None, figsize=__figsize__, fig
 
     file_array = []
     with open(binname, 'rb') as fh:
-        for x in fh.read():
+        for x in bytearray(fh.read()):
             file_array.append(x)
 
     log.debug('Read: "{}", length: {}'.format(binname, len(file_array)))
@@ -125,7 +126,7 @@ def bin_hist(binname, frmt=__figformat__, figname=None, figsize=__figsize__, fig
     for x in range(ignore_0, 256):
         ordered_row.append(c[x])
 
-    ax.bar((range(ignore_0, 256)), ordered_row, bins, label='Bytes', color='r', log=g_log, zorder=0)
+    ax.bar(np.array(list(range(ignore_0, 256))), np.array(ordered_row), align='edge', width=width, label='Bytes', color='r', log=g_log, zorder=0)
     log.debug('Graphed binary array')
 
     # # Add a byte hist ordered by occurrence - shows general distribution
@@ -138,25 +139,23 @@ def bin_hist(binname, frmt=__figformat__, figname=None, figsize=__figsize__, fig
         sorted_row.sort()
         sorted_row.reverse()
 
-        ax.bar((range(ignore_0,256)), sorted_row, bins, label='Ordered', color='b', log=g_log, zorder=1, alpha=.5)
+        ax.bar(np.array(list(range(ignore_0, 256))), np.array(sorted_row), width=width, label='Ordered', color='b', log=g_log, zorder=1, alpha=.5)
         log.debug('Graphed ordered binary array')
 
     # # Formatting and watermarking
-    ax.xaxis.set_major_formatter(ticker.FuncFormatter(lambda x, pos: ('0x%x') % (int(x))))
+    ax.xaxis.set_major_formatter(ticker.FuncFormatter(lambda x, pos: ('0x{:02X}'.format(int(x)))))
     ax.xaxis.set_major_locator(MaxNLocator(20))
-    ax.set_xlabel('Bytes')
+    ax.set_xlabel('Bytes (0x00 included: {}, width {})'.format((True if ignore_0 == 1 else False), width))
     ax.set_ylabel('Occurrence (log {})'.format(g_log))
 
-    plt.legend(loc=(1.03, 0.9))
+    plt.legend(loc='upper center', ncol=3, bbox_to_anchor=(0.5, 1.07), framealpha=1)
 
-    fig.suptitle('Byte histogram: {}'.format(os.path.basename(binname)), ha='center', va='top')
-
-    fig.subplots_adjust(hspace=0.5)
+    plt.title('Byte histogram: {}\n'.format(os.path.basename(binname)))
 
     credit = plt.imread(os.path.dirname(os.path.realpath(__file__))+'/credit.png')
     fig.figimage(credit, alpha=.5, zorder=99)
 
-    fig.tight_layout(rect=[0, 0.03, 1, 0.95])
+    fig.tight_layout()
 
     if showplt:
         log.debug('Opening graph interactively')
@@ -238,21 +237,19 @@ def bin_ent(binname, frmt=__figformat__, figname=None, figsize=__figsize__, figd
 
     log.debug('Closed: "{}"'.format(binname))
 
-
     # # Create the original figure
     fig, host = plt.subplots(figsize=figsize, dpi=figdpi)
-    fig.subplots_adjust(right=0.75)
 
     # # Plot the entropy graph
     host.set_xlim([0, len(shannon_samples)+1])
     host.set_ylim([0, 1.05])
 
     log.debug('Plotting shannon samples')
-    host.plot(shannon_samples, label='Entropy', c=section_colour('Entropy'), zorder=1001, linewidth=1)
+    host.plot(np.array(shannon_samples), label='Entropy', c=section_colour('Entropy'), zorder=1001, linewidth=1)
 
     host.set_ylabel('Entropy\n'.format(chunksize))
     host.set_xlabel('Raw file offset')
-    host.xaxis.set_major_formatter(ticker.FuncFormatter(lambda x, pos: ('0x%x') % (int(x * nr_chunksize)))) 
+    host.xaxis.set_major_formatter(ticker.FuncFormatter(lambda x, pos: ('0x{:02X}'.format(int(x * nr_chunksize)))))
     host.xaxis.set_major_locator(MaxNLocator(10))
     plt.xticks(rotation=-10, ha='left')
 
@@ -266,12 +263,12 @@ def bin_ent(binname, frmt=__figformat__, figname=None, figsize=__figsize__, figd
         axBytePc = host.twinx()
         axBytePc.set_ylim([-0.3, 101])
         axBytePc.set_ylabel('Occurrence of bytes (%)')
-        axBytePc.yaxis.set_major_formatter(ticker.FuncFormatter(lambda x, pos: ('%i%%') % (x)))
+        axBytePc.yaxis.set_major_formatter(ticker.FuncFormatter(lambda x, pos: ('{:d}%'.format(int(x)))))
 
         for label, percentages in byte_ranges.items():
             zorder -= 1
             c = section_colour(label)
-            axBytePc.plot(percentages, label=label, c=c, zorder=zorder, linewidth=0.7, alpha=0.75)
+            axBytePc.plot(np.array(percentages), label=label, c=c, zorder=zorder, linewidth=0.7, alpha=0.75)
 
     # # Filetype specific additions
     try:
@@ -306,29 +303,27 @@ def bin_ent(binname, frmt=__figformat__, figname=None, figsize=__figsize__, figd
         else:
             log.debug('Not currently customised: {}'.format(exebin.format))
 
-
     # # Add legends
+    legends = []
     if len(ibytes) > 0:
-        host.legend(loc=(1.1, 0.9))
+        legends.append(host.legend(loc='upper left', bbox_to_anchor=(1.1, 1), frameon=False))
+        legends.append(axBytePc.legend(loc='upper left', bbox_to_anchor=(1.1, 0.85), frameon=False))
     else:
-        host.legend(loc=(1.02, 0.9))
-
-    if len(ibytes) > 0:
-        axBytePc.legend(loc=(1.1, 0.5))
+        legends.append(host.legend(loc='upper left', bbox_to_anchor=(1.1, 1), frameon=False))
 
     # # Add watermark
-    fig.suptitle('Binary entropy (sampled over {} byte chunks): {}'.format(chunksize, os.path.basename(binname)), ha='center', va='top', y=0.93)
+    host.set_title('Binary entropy (sampled over {} byte chunks): {}\n\n\n'.format(chunksize, os.path.basename(binname)))
 
     credit = plt.imread(os.path.dirname(os.path.realpath(__file__))+'/credit.png')
     fig.figimage(credit, alpha=.5, zorder=99)
 
-    fig.tight_layout(rect=[0, 0, 1, 0.76])
+    plt.tight_layout()
 
     if showplt:
         log.debug('Opening graph interactively')
         plt.show()
     else:
-        plt.savefig(figname, format=frmt, dpi=figdpi, bbox_inches='tight')
+        plt.savefig(figname, format=frmt, dpi=figdpi, bbox_inches='tight',  bbox_extra_artists=tuple(legends))
         log.debug('Saved to: "{}"'.format(figname))
 
     plt.clf()
@@ -404,11 +399,11 @@ def section_graphs():
     # ## Byte histogram per section
     # # -------------------------------------------
     # # ncols int:     Number of columns of graphs
-    # # ignore_0 bool: Remove x00 from the graph, sometimes this blows other results due to there being numerous amounts - also see log
-    # # bins int:      Sample bins
-    # # log int:       Amount of 'log' to apply to the graph
+    # # ignore_0 bool: Remove 0x00 from the graph, sometimes this blows other results due to there being numerous amounts - also see log
+    # # width int:      Sample width
+    # # log bool:       Whether to apply a log scale to occurance axis
     # # ordered bool:  Add an ordered histogram - show overall distribution
-    def section_byte_occurrence_histogram(pebin, fig, ncols=2, ignore_0=True, bins=1, log=1, ordered=True):
+    def section_byte_occurrence_histogram(pebin, fig, ncols=2, ignore_0=True, width=1, log=1, ordered=True):
 
         ignore_0 = int(ignore_0)
 
@@ -425,7 +420,7 @@ def section_graphs():
             for x in range(ignore_0, 256):
                 ordered_row.append(c[x])
 
-            ax.bar((range(ignore_0,256)), ordered_row, bins, color=c1, log=log, zorder=1)
+            ax.bar((range(ignore_0,256)), ordered_row, width, color=c1, log=log, zorder=1)
 
             # # Add a byte hist ordered by occurrence - shows general distribution
             if ordered:
@@ -437,7 +432,7 @@ def section_graphs():
                 sorted_row.sort()
                 sorted_row.reverse()
 
-                ax.bar((range(ignore_0,256)), sorted_row, bins, color=c2, log=log, zorder=0)
+                ax.bar((range(ignore_0,256)), sorted_row, width, color=c2, log=log, zorder=0)
 
             ax.set_xlabel(s_name)
 
@@ -465,14 +460,14 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
     parser.add_argument('-f', '--file', type=str, required=True, nargs='+', metavar='malware.exe', help='Give me a graph of this file. See - if this is the only argument specified.')
-    parser.add_argument('-r', '--recurse', action="store_true", help='If --file is a directory, add files recursively')
-    parser.add_argument('-', dest='__dummy', action="store_true", help='*** Required if --file or -f is the only argument given before a graph type is given (it\'s greedy!). E.g. "binGraph.py --file mal.exe - bin_ent"')
+    parser.add_argument('-r', '--recurse', action='store_true', help='If --file is a directory, add files recursively')
+    parser.add_argument('-', dest='__dummy', action='store_true', help='*** Required if --file or -f is the only argument given before a graph type is given (it\'s greedy!). E.g. "binGraph.py --file mal.exe - bin_ent"')
     parser.add_argument('-p', '--prefix', type=str, help='Saved graph output filename (without extension)')
     parser.add_argument('-d', '--save_dir', type=str, default=os.getcwd(), metavar='/data/graphs/', help='Where to save the graph files')
     parser.add_argument('--format', type=str, default=__figformat__, choices=['png', 'pdf', 'ps', 'eps','svg'], required=False, metavar='png', help='Graph output format')
     parser.add_argument('--figsize', type=int, nargs=2, default=__figsize__, metavar='#', help='Figure width and height in inches')
     parser.add_argument('--dpi', type=int, default=__figdpi__, metavar=__figdpi__, help='Figure dpi')
-    parser.add_argument('--showplt', action="store_true", default=__showplt__, help='Show plot interactively (disables saving to file)')
+    parser.add_argument('--showplt', action='store_true', default=__showplt__, help='Show plot interactively (disables saving to file)')
     parser.add_argument('-v', '--verbose', action='store_true', help='Print debug information to stderr')
 
     subparsers = parser.add_subparsers(dest='graphtype', help='Graph type to generate')
@@ -487,9 +482,9 @@ if __name__ == '__main__':
 
     # # Arguments for the bytehist graph
     parser_bin_hist = subparsers.add_parser('bin_hist')
-    parser_bin_hist.add_argument('--ignore_0', action='store_true', default=__ignore_0__, help='Remove x00 from the graph, sometimes this blows other results due to there being numerous amounts - also see --log')
-    parser_bin_hist.add_argument('--bins', type=int, default=__bins__, metavar=__bins__, help='Sample bins')
-    parser_bin_hist.add_argument('--log', type=int, default=__g_log__, metavar=__g_log__, help='Amount of \'log\' to apply to the graph')
+    parser_bin_hist.add_argument('--ignore_0', action='store_true', default=__ignore_0__, help='Remove 0x00 from the graph, sometimes this blows other results due to there being numerous amounts - also see --log')
+    parser_bin_hist.add_argument('--width', type=int, default=__width__, metavar=__width__, help='Sample width')
+    parser_bin_hist.add_argument('--no_log', action='store_false', default=__g_log__, help='Do not apply a log scale to occurance axis')
     parser_bin_hist.add_argument('--no_order', action='store_false', default=__no_order__, help='Remove the ordered histogram - With it on, it shows the overall distribution')
 
     args = parser.parse_args()
@@ -549,12 +544,21 @@ if __name__ == '__main__':
 
         graph_types.append('bin_hist')
         args.ignore_0 = __ignore_0__
-        args.bins = __bins__
-        args.log = __g_log__
+        args.width = __width__
+        args.no_log = __g_log__
         args.no_order = __no_order__
 
     else:
         graph_types = [args.graphtype]
+
+    # # Test ibytes are sane - NEEDS TO WORK WITH --ibytes blanks
+    if 'bin_ent' in graph_types:
+        try:
+            args.ibytes = json.loads(args.ibytes)
+        except Exception as e:
+            log.critical('Error decoding --ibytes value: {}'.format(e))
+            exit(1)
+
 
     # # Iterate over all given files
     for index, file in enumerate(_files):
@@ -580,12 +584,12 @@ if __name__ == '__main__':
         if 'bin_ent' in graph_types:
             __save_fn__ = save_fn.format('bin_ent')
             log.info('+ Generating bin_ent from "{}"'.format(file))
-            bin_ent(binname=file, frmt=args.format, figname=__save_fn__, figsize=(args.figsize[0], args.figsize[1]), figdpi=args.dpi, chunks=args.chunks, ibytes=json.loads(args.ibytes), showplt=args.showplt)
+            bin_ent(binname=file, frmt=args.format, figname=__save_fn__, figsize=(args.figsize[0], args.figsize[1]), figdpi=args.dpi, chunks=args.chunks, ibytes=args.ibytes, showplt=args.showplt)
 
         if 'bin_hist' in graph_types:
             __save_fn__ = save_fn.format('bin_hist')
             log.info('+ Generating bin_hist from "{}"'.format(file))
-            bin_hist(binname=file, frmt=args.format, figname=__save_fn__, figsize=(args.figsize[0], args.figsize[1]), figdpi=args.dpi, ignore_0=args.ignore_0, bins=args.bins, g_log=args.log, ordered=args.no_order, showplt=args.showplt)
+            bin_hist(binname=file, frmt=args.format, figname=__save_fn__, figsize=(args.figsize[0], args.figsize[1]), figdpi=args.dpi, ignore_0=args.ignore_0, width=args.width, g_log=args.no_log, ordered=args.no_order, showplt=args.showplt)
 
         log.info('+++ Complete: "{}"'.format(file))
 
