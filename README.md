@@ -9,9 +9,9 @@ Below are the ```--help ``` options:
 
 ```
 $ python binGraph.py --help
-usage: binGraph.py [-h] -f malware.exe [malware.exe ...] [-] [-p PREFIX]
+usage: binGraph.py [-h] -f malware.exe [malware.exe ...] [-r] [-] [-p PREFIX]
                    [-d /data/graphs/] [--format png] [--figsize # #]
-                   [--dpi 100] [--showplt] [-v]
+                   [--dpi 100] [--showplt] [--blob] [-v]
                    {all,bin_ent,bin_hist} ...
 
 positional arguments:
@@ -23,6 +23,7 @@ optional arguments:
   -f malware.exe [malware.exe ...], --file malware.exe [malware.exe ...]
                         Give me a graph of this file. See - if this is the
                         only argument specified.
+  -r, --recurse         If --file is a directory, add files recursively
   -                     *** Required if --file or -f is the only argument
                         given before a graph type is given (it's greedy!).
                         E.g. "binGraph.py --file mal.exe - bin_ent"
@@ -34,6 +35,9 @@ optional arguments:
   --figsize # #         Figure width and height in inches
   --dpi 100             Figure dpi
   --showplt             Show plot interactively (disables saving to file)
+  --blob                Do not intelligently parse certain file types. Treat
+                        all files as a binary blob. E.g. don't add PE entry
+                        point or section splitter to the graph
   -v, --verbose         Print debug information to stderr
 ```
 
@@ -44,16 +48,17 @@ Shows the entropy over certain sized chunked samples of the binary file. The sam
 !MALWARE! Sample from: https://cape[.]contextis[.]com/file/CAPE/9472/ad5a729e7c4047c946601e5533b1dfa3983a0d84da61b743dda1ca3b1c956ec5/
 ```
 $ python binGraph.py bin_ent --help
-usage: binGraph.py bin_ent [-h] [-c 750] [--ibytes "{\"0's\": [0] ,
-                           \"Exploit\": [44, 144] }"]
+usage: binGraph.py bin_ent [-h] [-c 750] [--ibytes ["{\"0's\": [0], \"Exploit\": [44, 144] }"]]
 
 optional arguments:
   -h, --help            show this help message and exit
-  -c 750, --chunks 750    Defines how many chunks the binary is split into (and
+  -c 750, --chunks 750  Defines how many chunks the binary is split into (and
                         therefore the amount of bytes submitted for shannon
                         sampling per time). Higher number gives more detail
-  --ibytes "{\"0's\": [0] , \"Exploit\": [44, 144] }"
-                        JSON of bytes to include in the graph
+  --ibytes ["{\"0's\": [0] , \"Exploit\": [44, 144] }"]
+                        JSON of bytes to include in the graph. To disable this
+                        option, either set the flag without an argument, or
+                        set value to "{}"
 ```
 
 ## Binary Histogram - bin_hist
@@ -63,19 +68,20 @@ Provides an insight into the occurence of all bytes in the file. Two graphs are 
 !MALWARE! Sample from: https://cape[.]contextis[.]com/file/CAPE/9472/ad5a729e7c4047c946601e5533b1dfa3983a0d84da61b743dda1ca3b1c956ec5/
 ```
 $ python binGraph.py bin_hist --help
-usage: binGraph.py bin_hist [-h] [--ignore_0] [--bins 1] [--log 1]
+usage: binGraph.py bin_hist [-h] [--no_zero] [--width 1] [--no_log]
                             [--no_order]
 
 optional arguments:
   -h, --help  show this help message and exit
-  --ignore_0  Remove x00 from the graph, sometimes this blows other results
-              due to there being numerous amounts - also see --log
-  --bins 1    Sample bins
-  --log 1     Amount of 'log' to apply to the graph
-  --no_order  Remove the ordered histogram - With it on, it shows the overall
-              distribution
+  --no_zero   Remove 0x00 from the graph, sometimes this blows other results
+              due to there being numerous amounts - also see --no_log
+  --width 1   Sample width
+  --no_log    Do _not_ apply a log scale to occurance axis
+  --no_order  Remove the ordered histogram - It shows overall distribution
+              when on
 ```
 
 # To do:
 
 - Allow user to explicitly define colour to be used for each ```--ibytes``` value.
+- Place graph generation into their own modules
