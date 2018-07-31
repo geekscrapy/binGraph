@@ -168,7 +168,7 @@ def bin_hist(binname, frmt=__figformat__, figname=None, figsize=__figsize__, fig
         plt.show()
     else:
         plt.savefig(figname, format=frmt, dpi=figdpi, bbox_inches='tight')
-        log.debug('Saved to: "{}"'.format(figname))
+        log.info('Saved to: "{}"'.format(figname))
 
     plt.clf()
     plt.cla()
@@ -335,7 +335,7 @@ def bin_ent(binname, frmt=__figformat__, figname=None, figsize=__figsize__, figd
         plt.show()
     else:
         plt.savefig(figname, format=frmt, dpi=figdpi, bbox_inches='tight',  bbox_extra_artists=tuple(legends))
-        log.debug('Saved to: "{}"'.format(figname))
+        log.info('Saved to: "{}"'.format(figname))
 
     plt.clf()
     plt.cla()
