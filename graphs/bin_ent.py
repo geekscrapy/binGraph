@@ -138,7 +138,7 @@ def generate(binname, frmt=__figformat__, figname=None, figsize=__figsize__, fig
         log.debug('Using ibytes: {}'.format(ibytes))
 
         axBytePc = host.twinx()
-        axBytePc.set_ylabel('Occurrence of bytes (%)')
+        axBytePc.set_ylabel('Occurrence of "interesting" bytes')
         axBytePc.yaxis.set_major_formatter(ticker.FuncFormatter(lambda x, pos: ('{:d}%'.format(int(x)))))
 
         for label, percentages in byte_ranges.items():
@@ -148,10 +148,16 @@ def generate(binname, frmt=__figformat__, figname=None, figsize=__figsize__, fig
 
         axBytePc.set_ybound(lower=-0.3, upper=101)
 
+
+    # # Amount of space required between the title and graph elements (such as the section name)
+    # # Append a \n if you need more space!
+    title_gap = '\n'
+
     # # Filetype specific additions
     if blob:
         log.warning('Parsing file as blob - no filetype specific features')
     else:
+
         try:
             exebin = lief.parse(filepath=binname)
             log.debug('Parsed with lief as {}'.format(exebin.format))
@@ -170,17 +176,26 @@ def generate(binname, frmt=__figformat__, figname=None, figsize=__figsize__, fig
                 host.axvline(x=v_ep, linestyle=':', c='r', zorder=zorder-1)
                 host.text(x=v_ep, y=1.07, s='EP', rotation=45, va='bottom', ha='left')
 
+                longest_section_name = 0
+
                 # # Section vlines
                 for index, section in enumerate(exebin.sections):
                     zorder -= 1
 
-                    log.debug('{}: {}'.format(fix_section_name(section, index), section.offset))
-
+                    section_name = safe_section_name(section.name, index)
                     section_offset = section.offset / nr_chunksize
 
-                    host.axvline(x=section_offset, linestyle='--', zorder=zorder)
-                    host.text(x=section_offset, y=1.07, s=fix_section_name(section, index), rotation=45, va='bottom', ha='left')
+                    log.debug('{}: {}'.format(section_name, section.offset))
 
+                    host.axvline(x=section_offset, linestyle='--', zorder=zorder)
+                    host.text(x=section_offset, y=1.07, s=section_name, rotation=45, va='bottom', ha='left')
+
+                    # # Get longest section name
+                    longest_section_name = len(section_name) if len(section_name) > longest_section_name else longest_section_name
+
+                # # Eval the space required to show the section names
+                title_gap = int(longest_section_name / 4) * '\n'
+                
             else:
                 log.debug('Not currently customised: {}'.format(exebin.format))
 
@@ -196,10 +211,12 @@ def generate(binname, frmt=__figformat__, figname=None, figsize=__figsize__, fig
     else:
         legends.append(host.legend(loc='upper left', bbox_to_anchor=(1.01, 1), frameon=False))
 
+    # # Check section name length
+
     if blob:
-        host.set_title('Binary entropy (sampled over {} byte chunks): {}'.format(chunksize, os.path.basename(binname)))
+        host.set_title('Binary entropy (sampled over {chunksize} byte chunks): {binname}{title_gap}'.format(chunksize=chunksize, binname=os.path.basename(binname), title_gap=title_gap))
     else:
-        host.set_title('Binary entropy (sampled over {} byte chunks): {}\n\n\n'.format(chunksize, os.path.basename(binname)))
+        host.set_title('Binary entropy (sampled over {chunksize} byte chunks): {binname}{title_gap}'.format(chunksize=chunksize, binname=os.path.basename(binname), title_gap=title_gap))
 
     # Add watermark
     add_watermark(fig)
@@ -233,10 +250,9 @@ def get_chunk(fh, chunksize=8192):
             break
 
 # # Some samples may have a corrupt section name (e.g. 206c0533ce9bf83ecdf904bec2f3532d)
-def fix_section_name(section, index):
-        s_name = section.name
+def safe_section_name(s_name, index):
         if s_name == '' or s_name == None:
-            s_name = 'sect_'+str(index)
+            s_name = 'sect_{:d}'.format(str(index))
         return s_name
 
 # # Assign a colour to the section name. Static between samples
