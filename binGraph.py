@@ -6,7 +6,6 @@ import logging
 import argparse
 import pkgutil
 
-from graphs.global_defaults import __pyver__
 #### Helper functions
 
 # # Gather files to process - give it a list of paths (files or directories)
@@ -70,11 +69,11 @@ def gen_names(ffrmt, abs_fpath, abs_save_path, save_prefix=None, graphtype=None,
 
     abs_save_fpath = os.path.join(abs_save_path, save_fname)
 
-    return abs_save_fpath, os.path.basename(abs_fpath)
+    return abs_save_fpath, os.path.basename(abs_fpath), cleaned_fname
 
 # # Add watermark
 def add_watermark(fig):
-    credit = plt.imread(os.path.dirname(os.path.realpath(__file__))+'/../credit.png')
+    credit = plt.imread(os.path.dirname(os.path.realpath(__file__))+'/credit.png')
     fig.figimage(credit, alpha=.5, zorder=99)
 
 # # Import graphtypes
@@ -87,7 +86,7 @@ def get_graph_modules(dirname):
         if ('graph_' in full_package_name) and not (full_package_name in sys.modules):
             module = importer.find_module(package_name)
 
-            if __pyver__ < 3:
+            if sys.version_info[0] < 3:
                 module = module.load_module(full_package_name)
             else:
                 module = module.load_module()
@@ -99,11 +98,15 @@ def get_graph_modules(dirname):
 
 # ### Main
 
-# # Import helper functions
+# # Import default values functions
 from graphs import global_defaults as defaults
 
 # # Try and import the graphs
-graphs = get_graph_modules('graphs')
+try:
+    graphs = get_graph_modules('graphs')
+except Exception as e:
+    log.critical('Failed to import graph: {}'.format(e))
+    exit(0)
 
 # # Import the defaults
 parser = argparse.ArgumentParser()
@@ -148,6 +151,8 @@ log.debug('Found the following graph types: {}'.format(', '.join(graphs.keys()))
 
 # # Get a list of files from the arguments
 __files__ = find_files(args.file, args.recurse)
+# # Adjust args to retain the list of files
+args.files = __files__
 
 # # Is the save_dir actually a dirctory?
 args.save_dir = os.path.abspath(args.save_dir)
@@ -162,7 +167,7 @@ if args.graphtype == 'all':
 else:
     __graphtypes__ = { args.graphtype: graphs[args.graphtype] }
 
-log.debug('Asked to generate the following graph types: {}'.format(', '.join(__graphtypes__.keys()) ))
+log.debug('Generating graphs: {}'.format(', '.join(__graphtypes__.keys()) ))
 
 # # Allow graph modules to verify if their arguments have been set correctly
 for name, module in __graphtypes__.items():
@@ -172,43 +177,36 @@ for name, module in __graphtypes__.items():
         log.critical(e)
         exit(0)
 
-
-
-
 # # Iterate over all given files
 for index, abs_fpath in enumerate(__files__):
 
     log.info('+++ Processing: "{}"'.format(abs_fpath))
+    args_dict = args.__dict__
 
-    for name, module in __graphtypes__.items():
-        pass
+    for module_name, module in __graphtypes__.items():
+        abs_save_fpath, fname, clean_fname = gen_names(args.format, abs_fpath, args.save_dir, save_prefix=args.prefix, graphtype=module_name, findex=(index if len(__graphtypes__)<1 else None))
 
+        args_dict['abs_fpath'] = abs_fpath # Define the current file we are acting on
+        args_dict['fname'] = fname
+        args_dict['clean_fname'] = clean_fname
 
-    abs_save_fpath, fname = gen_names(args.format, abs_fpath, args.save_dir, save_prefix=args.prefix, graphtype='type', findex=(index if len(__graphtypes__)<1 else None))
+        # # Generate and output the graph
+        plt, save_kwargs = module.generate(**args_dict)
 
-    print(index, abs_fpath, abs_save_fpath, fname)
+        fig = plt.gcf()
+        fig.set_size_inches(tuple(args.figsize))
 
-exit(0)
+        add_watermark(fig)
 
+        if args.showplt:
+            log.debug('Opening graph interactively')
+            plt.show()
+        else:
+            plt.savefig(abs_save_fpath, format=args.format, dpi=args.dpi, **save_kwargs)
+            log.info('Graph saved to: "{}"'.format(abs_save_fpath))
 
+        plt.clf()
+        plt.cla()
+        plt.close()
 
-    # if 'bin_ent' in graph_types:
-    #     __save_fn__ = save_fn.format('bin_ent')
-    #     log.info('+ Generating bin_ent from "{}"'.format(file))
-    #     bin_ent.generate(binname=file, frmt=args.format, figname=__save_fn__, figsize=(args.figsize[0], args.figsize[1]), figdpi=args.dpi, chunks=args.chunks, ibytes=args.ibytes, blob=args.blob, showplt=args.showplt)
-
-    # if 'bin_hist' in graph_types:
-    #     __save_fn__ = save_fn.format('bin_hist')
-    #     log.info('+ Generating bin_hist from "{}"'.format(file))
-    #     bin_hist.generate(binname=file, frmt=args.format, figname=__save_fn__, figsize=(args.figsize[0], args.figsize[1]), figdpi=args.dpi, no_zero=args.no_zero, width=args.width, g_log=args.no_log, no_order=args.no_order, showplt=args.showplt)
-
-    # log.info('+++ Complete: "{}"'.format(abs_fpath))
-
-
-    # Generate and clean the filename if it doesn't exit
-    # fig, host = plt.subplots(figsize=figsize, dpi=figdpi)
-    # Add watermark
-    # If show plt of save
-
-
-
+    log.info('+++ Complete: "{}"'.format(abs_fpath))

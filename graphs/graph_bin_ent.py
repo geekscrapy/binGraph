@@ -1,11 +1,7 @@
 """
-
-## Entropy and byte occurrence analysis over all file
+Entropy and byte occurrence analysis over all file
 -------------------------------------------
 binname:    File to load and analyse
-figsize:    Specify size of the figure ouputted
-frmt:       Output filetype. Can be anything supported by matplotlib - png, svg, jpg
-figname:    Filename to save graph
 figsize:    Size to save figure, (width,height)
 showplt:   Show the graph interactively, disables saving to a file
 
@@ -18,7 +14,7 @@ ibytes dicts of lists:  A dict of interesting bytes wanting to be displayed on t
 # # Get helper functions
 from graphs.helpers import shannon_ent
 # # Get common graph defaults
-from graphs.global_defaults import __figformat__, __figsize__, __figdpi__, __showplt__, __blob__, __pyver__
+from graphs.global_defaults import __figformat__, __figsize__, __figdpi__, __showplt__, __blob__
 
 # # Import graph specific libs
 import matplotlib.pyplot as plt
@@ -31,6 +27,7 @@ import statistics
 from collections import Counter
 import os
 import json
+import sys
 
 # # https://www.peterbe.com/plog/jsondecodeerror-in-requests.get.json-python-2-and-3
 import json
@@ -44,20 +41,19 @@ import lief
 import logging
 log = logging.getLogger()
 
-
 # # Graph defaults
 __chunks__ = 750
 __ibytes__= '{"0\'s": [0], "Printable ASCII": [32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126], "Exploit": [44, 144]}'
 __ibytes_dict__ = json.loads(__ibytes__)
 
-# Set args in args parse
+# # Set args in args parse
 def args_setup(arg_parser):
 
     parser_bin_ent = arg_parser.add_parser('bin_ent')
     parser_bin_ent.add_argument('-c','--chunks', type=int, default=__chunks__, metavar='750', help='Defines how many chunks the binary is split into (and therefore the amount of bytes submitted for shannon sampling per time). Higher number gives more detail')
     parser_bin_ent.add_argument('--ibytes', type=str, nargs='?', default=__ibytes__, metavar='\"{\\\"0\'s\\\": [0] , \\\"Exploit\\\": [44, 144] }\"', help='JSON of bytes to include in the graph. To disable this option, either set the flag without an argument, or set value to "{}"')
 
-# Validate graph specific arguments - Set the defaults here
+# # Validate graph specific arguments - Set the defaults here
 class ArgValidationEx(Exception): pass
 def args_validation(args):
 
@@ -66,24 +62,31 @@ def args_validation(args):
         args.ibytes = __ibytes__
         args.chunks = __chunks__ 
 
-    # # Test ibytes are sane
+    # # Test ibytes is jalid json
     if args.ibytes == None:
         args.ibytes = json.loads('{}')
     else:
         try:
             args.ibytes = json.loads(args.ibytes)
         except JSONDecodeError as e:
-            raise ArgValidationEx('Error decoding --ibytes value. {}: "{}"'.format(e, args.ibytes))
+            raise ArgValidationEx('Error decoding json --ibytes value. {}: "{}"'.format(e, args.ibytes))
 
-# Generate the graph
-def generate(binname, frmt=__figformat__, figname=None, figsize=__figsize__, figdpi=__figdpi__, blob=__blob__, showplt=__showplt__, chunks=750, ibytes=__ibytes_dict__):
+    # # Test to see if ibytes are sane
+    for name, bytelist in args.ibytes.items():
 
-    if not figname:
-        figname = 'bin_ent-{}.{}'.format(clean_fname(binname), frmt)
-        log.debug('No name given. Generated: {}'.format(figname))
+        if not (type(name) == str or type(bytelist) == list) or not len(bytelist) > 0:
+            raise ArgValidationEx('Error validating --ibytes. Name is not a string or bytes not list: {} = {}'.format(name, bytelist))
 
-    with open(binname, 'rb') as fh:
-        log.debug('Opening: "{}"'.format(binname))
+        for b in bytelist:
+            if not type(b) == int:
+                raise ArgValidationEx('Error validating --ibytes. Item in list not an int: {} = {}'.format(name, b))
+
+
+# # Generate the graph
+def generate(abs_fpath, fname, figsize=__figsize__, blob=__blob__, showplt=__showplt__, chunks=__chunks__, ibytes=__ibytes_dict__, **kwargs):
+
+    with open(abs_fpath, 'rb') as fh:
+        log.debug('Opening: "{}"'.format(fname))
 
         # # Calculate the overall chunksize 
         fs = os.fstat(fh.fileno()).st_size
@@ -124,10 +127,10 @@ def generate(binname, frmt=__figformat__, figname=None, figsize=__figsize__, fig
 
                     byte_ranges[label].append((float(occurrence)/float(len(chunk)))*100)
 
-    log.debug('Closed: "{}"'.format(binname))
+    log.debug('Closed: "{}"'.format(fname))
 
     # # Create the figure
-    fig, host = plt.subplots(figsize=figsize, dpi=figdpi)
+    fig, host = plt.subplots()
 
     log.debug('Plotting shannon samples')
     host.plot(np.array(shannon_samples), label='Entropy', c=section_colour('Entropy'), zorder=1001, linewidth=1)
@@ -167,12 +170,13 @@ def generate(binname, frmt=__figformat__, figname=None, figsize=__figsize__, fig
     else:
 
         try:
-            exebin = lief.parse(filepath=binname)
+
+            exebin = lief.parse(filepath=abs_fpath)
             log.debug('Parsed with lief as {}'.format(exebin.format))
 
-        except Exception as e:
+        except lief.bad_file as e:
             exebin = None
-            log.warning('Failed to parse with lief: {}'.format(e))
+            log.warning('Failed to parse with lief, parsing like --blob: {}'.format(e))
 
         if exebin:
             if type(exebin) == lief.PE.Binary:
@@ -202,7 +206,7 @@ def generate(binname, frmt=__figformat__, figname=None, figsize=__figsize__, fig
                     longest_section_name = len(section_name) if len(section_name) > longest_section_name else longest_section_name
 
                 # # Eval the space required to show the section names
-                title_gap = int(longest_section_name / 4) * '\n'
+                title_gap = int(longest_section_name / 3) * '\n'
                 
             else:
                 log.debug('Not currently customised: {}'.format(exebin.format))
@@ -219,37 +223,25 @@ def generate(binname, frmt=__figformat__, figname=None, figsize=__figsize__, fig
     else:
         legends.append(host.legend(loc='upper left', bbox_to_anchor=(1.01, 1), frameon=False))
 
-    # # Check section name length
-
     if blob:
-        host.set_title('Binary entropy (sampled over {chunksize} byte chunks): {binname}{title_gap}'.format(chunksize=chunksize, binname=os.path.basename(binname), title_gap=title_gap))
+        host.set_title('Binary entropy (sampled over {chunksize} byte chunks): {fname}{title_gap}'.format(chunksize=chunksize, fname=fname, title_gap=title_gap))
     else:
-        host.set_title('Binary entropy (sampled over {chunksize} byte chunks): {binname}{title_gap}'.format(chunksize=chunksize, binname=os.path.basename(binname), title_gap=title_gap))
-
-    # Add watermark
-    add_watermark(fig)
+        host.set_title('Binary entropy (sampled over {chunksize} byte chunks): {fname}{title_gap}'.format(chunksize=chunksize, fname=fname, title_gap=title_gap))
 
     plt.tight_layout()
 
-    if showplt:
-        log.debug('Opening graph interactively')
-        plt.show()
-    else:
-        plt.savefig(figname, format=frmt, dpi=figdpi, bbox_inches='tight',  bbox_extra_artists=tuple(legends))
-        log.debug('Saved to: "{}"'.format(figname))
-
-    plt.clf()
-    plt.cla()
-    plt.close()
+    # # Return the plt and kwargs for the plt.savefig function
+    return (plt, {'bbox_inches':'tight',  'bbox_extra_artists':tuple(legends)})
 
 
+# ### Helper functions
 # # Read files as chunks
 def get_chunk(fh, chunksize=8192):
     while True:
         chunk = fh.read(chunksize)
 
         # # Convert to bytearray if not python 3
-        if __pyver__ <= 3:
+        if sys.version_info[0] <= 3:
             chunk = bytearray(chunk)
 
         if chunk:
