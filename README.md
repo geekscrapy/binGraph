@@ -86,5 +86,4 @@ optional arguments:
 - Add generic functions of graphs (watermarking, generate fig etc.)
 - Output as json/base64 for image data
 - Allow user to explicitly define colour to be used for each ```--ibytes``` value.
-- Place graph generation into their own modules
 - Read from stdin for use with other tools such as Didier Stevens's zipdump.py

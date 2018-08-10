@@ -17,16 +17,15 @@ no_order bool: Remove the ordered histogram - it shows overall distribution
 """
 from __future__ import division
 
-# # Get helper functions
-from graphs.common import clean_fname, add_watermark
 # # Get common graph defaults
-from graphs.common import __figformat__, __figsize__, __figdpi__, __showplt__
+from graphs.global_defaults import __figformat__, __figsize__, __figdpi__, __showplt__
 
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 from matplotlib.ticker import MaxNLocator
 from collections import Counter
 import numpy as np
+
 import os
 
 import logging
@@ -39,9 +38,9 @@ __g_log__ = True
 __no_order__ = False
 
 # Set args in args parse
-def args_setup(arg_parser):
+def args_setup(subparser):
 
-    parser_bin_hist = arg_parser.add_parser('bin_hist')
+    parser_bin_hist = subparser.add_parser('bin_hist')
     parser_bin_hist.add_argument('--no_zero', action='store_true', default=__no_zero__, help='Remove 0x00 from the graph, sometimes this blows other results due to there being numerous amounts - also see --no_log')
     parser_bin_hist.add_argument('--width', type=int, default=__width__, metavar=__width__, help='Sample width')
     parser_bin_hist.add_argument('--no_log', action='store_false', default=__g_log__, help='Do _not_ apply a log scale to occurance axis')
@@ -49,6 +48,13 @@ def args_setup(arg_parser):
 
 # Validate graph specific arguments
 def args_validation(args):
+
+    # # Test to see what matplotlib backend is setup
+    backend = matplotlib.get_backend()
+    if not backend == 'TkAgg':
+        log.warning('{} matplotlib backend in use. This graph generation was tested with XXX, bugs may lie ahead...'.format(backend))
+    else:
+        log.debug('Matplotlib backend: {}'.format(backend))
 
     # # Test to see if we should use defaults
     if args.graphtype == 'all':

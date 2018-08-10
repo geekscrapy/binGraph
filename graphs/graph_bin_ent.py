@@ -16,9 +16,9 @@ ibytes dicts of lists:  A dict of interesting bytes wanting to be displayed on t
 """
 
 # # Get helper functions
-from graphs.common import shannon_ent, clean_fname, add_watermark, __pyver__
+from graphs.helpers import shannon_ent
 # # Get common graph defaults
-from graphs.common import __figformat__, __figsize__, __figdpi__, __showplt__, __blob__
+from graphs.global_defaults import __figformat__, __figsize__, __figdpi__, __showplt__, __blob__, __pyver__
 
 # # Import graph specific libs
 import matplotlib.pyplot as plt
@@ -29,13 +29,21 @@ import hashlib
 import numpy as np
 import statistics
 from collections import Counter
-import json
 import os
+import json
+
+# # https://www.peterbe.com/plog/jsondecodeerror-in-requests.get.json-python-2-and-3
+import json
+try:
+    from json.decoder import JSONDecodeError
+except ImportError:
+    JSONDecodeError = ValueError
 
 import lief
 
 import logging
 log = logging.getLogger()
+
 
 # # Graph defaults
 __chunks__ = 750
@@ -49,7 +57,8 @@ def args_setup(arg_parser):
     parser_bin_ent.add_argument('-c','--chunks', type=int, default=__chunks__, metavar='750', help='Defines how many chunks the binary is split into (and therefore the amount of bytes submitted for shannon sampling per time). Higher number gives more detail')
     parser_bin_ent.add_argument('--ibytes', type=str, nargs='?', default=__ibytes__, metavar='\"{\\\"0\'s\\\": [0] , \\\"Exploit\\\": [44, 144] }\"', help='JSON of bytes to include in the graph. To disable this option, either set the flag without an argument, or set value to "{}"')
 
-# Validate graph specific arguments
+# Validate graph specific arguments - Set the defaults here
+class ArgValidationEx(Exception): pass
 def args_validation(args):
 
     # # Test to see if we should use defaults
@@ -63,9 +72,8 @@ def args_validation(args):
     else:
         try:
             args.ibytes = json.loads(args.ibytes)
-        except json.decoder.JSONDecodeError as e:
-            log.critical('Error decoding --ibytes value: {}: "{}"'.format(e, args.ibytes))
-            exit(1)
+        except JSONDecodeError as e:
+            raise ArgValidationEx('Error decoding --ibytes value. {}: "{}"'.format(e, args.ibytes))
 
 # Generate the graph
 def generate(binname, frmt=__figformat__, figname=None, figsize=__figsize__, figdpi=__figdpi__, blob=__blob__, showplt=__showplt__, chunks=750, ibytes=__ibytes_dict__):
