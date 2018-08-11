@@ -9,6 +9,7 @@ width int:      Sample width
 g_log bool:     Whether to apply a log scale to occurance axis
 no_order bool:  Remove the ordered histogram - it shows overall distribution
 """
+
 from __future__ import division
 
 # # Get common graph defaults

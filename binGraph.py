@@ -149,7 +149,6 @@ for name, module in graphs.items():
 
 args = parser.parse_args()
 
-
 # # Set logging
 if args.verbose:
     logging.getLogger().setLevel(logging.DEBUG)
