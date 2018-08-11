@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 
-import os
 import sys
+import pkgutil
+import os
 import logging
 import argparse
-import pkgutil
 
 #### Helper functions
 
@@ -81,7 +81,7 @@ def get_graph_modules(dirname):
 
     modules = {}
     for importer, package_name, _ in pkgutil.iter_modules([dirname]):
-        full_package_name = '%s.%s' % (dirname, package_name)
+        full_package_name = '{}.{}'.format(dirname, package_name)
 
         if ('graph_' in full_package_name) and not (full_package_name in sys.modules):
             module = importer.find_module(package_name)
@@ -194,15 +194,18 @@ for index, abs_fpath in enumerate(__files__):
         plt, save_kwargs = module.generate(**args_dict)
 
         fig = plt.gcf()
-        fig.set_size_inches(tuple(args.figsize))
+        fig.set_size_inches(*args.figsize, forward=True)
 
         add_watermark(fig)
+
+        plt.tight_layout()
+
 
         if args.showplt:
             log.debug('Opening graph interactively')
             plt.show()
         else:
-            plt.savefig(abs_save_fpath, format=args.format, dpi=args.dpi, **save_kwargs)
+            plt.savefig(abs_save_fpath, format=args.format, dpi=args.dpi, forward=True, **save_kwargs)
             log.info('Graph saved to: "{}"'.format(abs_save_fpath))
 
         plt.clf()

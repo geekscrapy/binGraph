@@ -20,13 +20,12 @@ from __future__ import division
 # # Get common graph defaults
 from graphs.global_defaults import __figformat__, __figsize__, __figdpi__, __showplt__
 
-import matplotlib.pyplot as plt
+import os
+import numpy as np
 import matplotlib.ticker as ticker
+import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator
 from collections import Counter
-import numpy as np
-
-import os
 
 import logging
 log = logging.getLogger()
@@ -52,7 +51,7 @@ def args_validation(args):
     # # Test to see what matplotlib backend is setup
     backend = matplotlib.get_backend()
     if not backend == 'TkAgg':
-        log.warning('{} matplotlib backend in use. This graph generation was tested with XXX, bugs may lie ahead...'.format(backend))
+        log.warning('{} matplotlib backend in use. This graph generation was tested with "TkAgg", bugs may lie ahead...'.format(backend))
     else:
         log.debug('Matplotlib backend: {}'.format(backend))
 
