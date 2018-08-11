@@ -1,19 +1,13 @@
 """
-
-## Byte histogram over all file
+Byte histogram over all file
 -------------------------------------------
-binname:     File to load and analyse
-figsize:     Specify size of the figure ouputted
-frmt:        Output filetype. Can be anything supported by matplotlib - png, svg, jpg
-figname:     Filename to save graph
-figsize:     Size to save figure, (width,height)
-showplt:    Show the graph interactively, disables saving to a file
+abs_fpath:      Absolute file path - File to load and analyse
+fname:          Filename
 
-no_zero bool:  Remove 0x00 from the graph, sometimes this blows other results due to there being numerous amounts - also see log
-width int:     Sample width
-g_log bool:    Whether to apply a log scale to occurance axis
-no_order bool: Remove the ordered histogram - it shows overall distribution
-
+no_zero bool:   Remove 0x00 from the graph, sometimes this blows other results due to there being numerous amounts - also see log
+width int:      Sample width
+g_log bool:     Whether to apply a log scale to occurance axis
+no_order bool:  Remove the ordered histogram - it shows overall distribution
 """
 from __future__ import division
 
@@ -22,6 +16,8 @@ from graphs.global_defaults import __figformat__, __figsize__, __figdpi__, __sho
 
 import os
 import numpy as np
+import matplotlib
+
 import matplotlib.ticker as ticker
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator
@@ -37,13 +33,12 @@ __g_log__ = True
 __no_order__ = False
 
 # Set args in args parse
-def args_setup(subparser):
+def args_setup(arg_parser):
 
-    parser_bin_hist = subparser.add_parser('bin_hist')
-    parser_bin_hist.add_argument('--no_zero', action='store_true', default=__no_zero__, help='Remove 0x00 from the graph, sometimes this blows other results due to there being numerous amounts - also see --no_log')
-    parser_bin_hist.add_argument('--width', type=int, default=__width__, metavar=__width__, help='Sample width')
-    parser_bin_hist.add_argument('--no_log', action='store_false', default=__g_log__, help='Do _not_ apply a log scale to occurance axis')
-    parser_bin_hist.add_argument('--no_order', action='store_true', default=__no_order__, help='Remove the ordered histogram - It shows overall distribution when on')
+    arg_parser.add_argument('--no_zero', action='store_true', default=__no_zero__, help='Remove 0x00 from the graph, sometimes this blows other results due to there being numerous amounts - also see --no_log')
+    arg_parser.add_argument('--width', type=int, default=__width__, metavar=__width__, help='Sample width')
+    arg_parser.add_argument('--no_log', action='store_false', default=__g_log__, help='Do _not_ apply a log scale to occurance axis')
+    arg_parser.add_argument('--no_order', action='store_true', default=__no_order__, help='Remove the ordered histogram - It shows overall distribution when on')
 
 # Validate graph specific arguments
 def args_validation(args):
@@ -62,23 +57,19 @@ def args_validation(args):
         args.no_log = __g_log__
         args.no_order = __no_order__
 
-def generate(binname, frmt=__figformat__, figname=None, figsize=__figsize__, figdpi=__figdpi__, showplt=__showplt__, no_zero=__no_zero__, width=__width__, g_log=__g_log__, no_order=__no_order__):
-
-    if not figname:
-        figname = 'bin_hist-{}.{}'.format(clean_fname(binname), frmt)
-        log.info('No name given. Generated: {}'.format(figname))
+def generate(abs_fpath, fname, no_zero=__no_zero__, width=__width__, g_log=__g_log__, no_order=__no_order__, **kwargs):
 
     file_array = []
-    with open(binname, 'rb') as fh:
+    with open(abs_fpath, 'rb') as fh:
         for x in bytearray(fh.read()):
             file_array.append(x)
 
-    log.debug('Read: "{}", length: {}'.format(binname, len(file_array)))
+    log.debug('Read: "{}", length: {}'.format(fname, len(file_array)))
 
-    no_zero = int(no_zero)
     log.debug('Ignore 0\'s: {}'.format(no_zero))
+    no_zero = -int(no_zero)
 
-    fig, ax = plt.subplots(figsize=figsize, dpi=figdpi)
+    fig, ax = plt.subplots()
 
     # # Add a byte hist ordered 1 > 255
     ordered_row = []
@@ -120,20 +111,6 @@ def generate(binname, frmt=__figformat__, figname=None, figsize=__figsize__, fig
 
     plt.legend(loc='upper center', ncol=3, bbox_to_anchor=(0.5, 1.07), framealpha=1)
 
-    plt.title('Byte histogram: {}\n'.format(os.path.basename(binname)))
+    plt.title('Byte histogram: {}\n'.format(fname))
 
-    # Add watermark
-    add_watermark(fig)
-
-    fig.tight_layout()
-
-    if showplt:
-        log.debug('Opening graph interactively')
-        plt.show()
-    else:
-        plt.savefig(figname, format=frmt, dpi=figdpi, bbox_inches='tight')
-        log.debug('Saved to: "{}"'.format(figname))
-
-    plt.clf()
-    plt.cla()
-    plt.close()
+    return plt, {}

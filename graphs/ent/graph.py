@@ -1,14 +1,12 @@
 """
 Entropy and byte occurrence analysis over all file
 -------------------------------------------
-binname:    File to load and analyse
-figsize:    Size to save figure, (width,height)
-showplt:   Show the graph interactively, disables saving to a file
+abs_fpath:              Absolute file path - File to load and analyse
+fname:                  Filename
 
 chunks int:             How many chunks to split the file over. Smaller chunks give a more averaged graph, a larger number of chunks give more detail
 ibytes dicts of lists:  A dict of interesting bytes wanting to be displayed on the graph. These can often show relationships and reason for dips or
-                         increases in entropy at particular points. Bytes within each type are defined as lists of _decimals_, _not_ hex.
-
+                        increases in entropy at particular points. Bytes within each type are defined as lists of _decimals_, _not_ hex.
 """
 
 # # Get helper functions
@@ -17,6 +15,7 @@ from graphs.helpers import shannon_ent
 from graphs.global_defaults import __figformat__, __figsize__, __figdpi__, __showplt__, __blob__
 
 # # Import graph specific libs
+import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 from matplotlib.ticker import MaxNLocator
@@ -46,16 +45,21 @@ __chunks__ = 750
 __ibytes__= '{"0\'s": [0], "Printable ASCII": [32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126], "Exploit": [44, 144]}'
 __ibytes_dict__ = json.loads(__ibytes__)
 
-# # Set args in args parse
+# # Set args in args parse - the given parser is a sub parser
 def args_setup(arg_parser):
-
-    parser_bin_ent = arg_parser.add_parser('bin_ent')
-    parser_bin_ent.add_argument('-c','--chunks', type=int, default=__chunks__, metavar='750', help='Defines how many chunks the binary is split into (and therefore the amount of bytes submitted for shannon sampling per time). Higher number gives more detail')
-    parser_bin_ent.add_argument('--ibytes', type=str, nargs='?', default=__ibytes__, metavar='\"{\\\"0\'s\\\": [0] , \\\"Exploit\\\": [44, 144] }\"', help='JSON of bytes to include in the graph. To disable this option, either set the flag without an argument, or set value to "{}"')
+    arg_parser.add_argument('-c','--chunks', type=int, default=__chunks__, metavar='750', help='Defines how many chunks the binary is split into (and therefore the amount of bytes submitted for shannon sampling per time). Higher number gives more detail')
+    arg_parser.add_argument('--ibytes', type=str, nargs='?', default=__ibytes__, metavar='\"{\\\"0\'s\\\": [0] , \\\"Exploit\\\": [44, 144] }\"', help='JSON of bytes to include in the graph. To disable this option, either set the flag without an argument, or set value to "{}"')
 
 # # Validate graph specific arguments - Set the defaults here
 class ArgValidationEx(Exception): pass
 def args_validation(args):
+
+    # # Test to see what matplotlib backend is setup
+    backend = matplotlib.get_backend()
+    if not backend == 'TkAgg':
+        log.warning('{} matplotlib backend in use. This graph generation was tested with "TkAgg", bugs may lie ahead...'.format(backend))
+    else:
+        log.debug('Matplotlib backend: {}'.format(backend))
 
     # # Test to see if we should use defaults
     if args.graphtype == 'all':
@@ -83,7 +87,7 @@ def args_validation(args):
 
 
 # # Generate the graph
-def generate(abs_fpath, fname, figsize=__figsize__, blob=__blob__, showplt=__showplt__, chunks=__chunks__, ibytes=__ibytes_dict__, **kwargs):
+def generate(abs_fpath, fname, blob=__blob__, showplt=__showplt__, chunks=__chunks__, ibytes=__ibytes_dict__, **kwargs):
 
     with open(abs_fpath, 'rb') as fh:
         log.debug('Opening: "{}"'.format(fname))
@@ -227,8 +231,6 @@ def generate(abs_fpath, fname, figsize=__figsize__, blob=__blob__, showplt=__sho
         host.set_title('Binary entropy (sampled over {chunksize} byte chunks): {fname}{title_gap}'.format(chunksize=chunksize, fname=fname, title_gap=title_gap))
     else:
         host.set_title('Binary entropy (sampled over {chunksize} byte chunks): {fname}{title_gap}'.format(chunksize=chunksize, fname=fname, title_gap=title_gap))
-
-    plt.tight_layout()
 
     # # Return the plt and kwargs for the plt.savefig function
     return (plt, {'bbox_inches':'tight',  'bbox_extra_artists':tuple(legends)})

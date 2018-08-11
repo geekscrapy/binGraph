@@ -73,37 +73,51 @@ def gen_names(ffrmt, abs_fpath, abs_save_path, save_prefix=None, graphtype=None,
 
 # # Add watermark
 def add_watermark(fig):
-    credit = plt.imread(os.path.dirname(os.path.realpath(__file__))+'/credit.png')
+    credit = plt.imread(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'credit.png'))
     fig.figimage(credit, alpha=.5, zorder=99)
 
-# # Import graphtypes
-def get_graph_modules(dirname):
+# # Dynamically import graphtypes
+def get_graph_modules():
+
+    graphs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'graphs')
+    graph_individuals = [x[0] for x in os.walk(graphs_dir)][1:]
 
     modules = {}
-    for importer, package_name, _ in pkgutil.iter_modules([dirname]):
-        full_package_name = '{}.{}'.format(dirname, package_name)
 
-        if ('graph_' in full_package_name) and not (full_package_name in sys.modules):
-            module = importer.find_module(package_name)
+    for graph in graph_individuals:
+
+        for importer, package_name, _ in pkgutil.iter_modules([graph]):
 
             if sys.version_info[0] < 3:
-                module = module.load_module(full_package_name)
+                full_package_name = 'graphs.{}'.format(os.path.basename(graph), package_name)
             else:
-                module = module.load_module()
+                full_package_name = 'graphs.{}.graph'.format(os.path.basename(graph), package_name)
 
-            modules[package_name.replace('graph_', '')] = module
+
+            if not (full_package_name in sys.modules):
+
+                if sys.version_info[0] < 3:
+                    module = importer.find_module('graph', graph)
+                else:
+                    module = importer.find_module(full_package_name)
+
+                module = module.load_module(full_package_name)
+
+                modules[os.path.basename(graph)] = module
 
     return modules
 
 
 # ### Main
+logging.basicConfig(stream=sys.stderr, format='Verbose | %(levelname)s | %(message)s')
+log = logging.getLogger('binGraph')
 
 # # Import default values functions
 from graphs import global_defaults as defaults
 
 # # Try and import the graphs
 try:
-    graphs = get_graph_modules('graphs')
+    graphs = get_graph_modules()
 except Exception as e:
     log.critical('Failed to import graph: {}'.format(e))
     exit(0)
@@ -127,23 +141,23 @@ subparsers.required = True
 
 subparsers.add_parser('all')
 
+
 # # Loop over all graph types to add their graph specific options
 for name, module in graphs.items():
-    module.args_setup(subparsers)
+    module_parser = subparsers.add_parser(name)
+    module.args_setup(module_parser)
 
 args = parser.parse_args()
 
 
 # # Set logging
 if args.verbose:
-    logging.basicConfig(stream=sys.stderr, format='Verbose | %(levelname)s | %(message)s', level=logging.DEBUG)
+    logging.getLogger().setLevel(logging.DEBUG)
     logging.getLogger('matplotlib').setLevel(logging.WARNING)
 else:
-    logging.basicConfig(stream=sys.stderr, format='*** %(levelname)s | %(message)s', level=logging.INFO)
+    logging.getLogger().setLevel(logging.INFO)
     # # Lower the matplotlib logger
     logging.getLogger('matplotlib').setLevel(logging.CRITICAL)
-
-log = logging.getLogger('binGraph')
 
 log.debug('Found the following graph types: {}'.format(', '.join(graphs.keys())))
 
@@ -184,11 +198,11 @@ for index, abs_fpath in enumerate(__files__):
     args_dict = args.__dict__
 
     for module_name, module in __graphtypes__.items():
-        abs_save_fpath, fname, clean_fname = gen_names(args.format, abs_fpath, args.save_dir, save_prefix=args.prefix, graphtype=module_name, findex=(index if len(__graphtypes__)<1 else None))
+        abs_save_fpath, fname, cleaned_fname = gen_names(args.format, abs_fpath, args.save_dir, save_prefix=args.prefix, graphtype=module_name, findex=(index if len(__graphtypes__)<1 else None))
 
         args_dict['abs_fpath'] = abs_fpath # Define the current file we are acting on
         args_dict['fname'] = fname
-        args_dict['clean_fname'] = clean_fname
+        args_dict['cleaned_fname'] = cleaned_fname
 
         # # Generate and output the graph
         plt, save_kwargs = module.generate(**args_dict)
@@ -197,9 +211,7 @@ for index, abs_fpath in enumerate(__files__):
         fig.set_size_inches(*args.figsize, forward=True)
 
         add_watermark(fig)
-
         plt.tight_layout()
-
 
         if args.showplt:
             log.debug('Opening graph interactively')
