@@ -12,9 +12,6 @@ no_order bool:  Remove the ordered histogram - it shows overall distribution
 
 from __future__ import division
 
-# # Get common graph defaults
-from graphs.global_defaults import __figformat__, __figsize__, __figdpi__, __showplt__
-
 import os
 import numpy as np
 import matplotlib

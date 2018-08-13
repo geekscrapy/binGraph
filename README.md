@@ -83,7 +83,6 @@ optional arguments:
 
 # To do:
 
-- Add generic functions of graphs (watermarking, generate fig etc.)
-- Output as json/base64 for image data
 - Allow user to explicitly define colour to be used for each ```--ibytes``` value.
 - Read from stdin for use with other tools such as Didier Stevens's zipdump.py
+- Output as json/base64 for image data

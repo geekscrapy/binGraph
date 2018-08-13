@@ -7,12 +7,8 @@ fname:                  Filename
 chunks int:             How many chunks to split the file over. Smaller chunks give a more averaged graph, a larger number of chunks give more detail
 ibytes dicts of lists:  A dict of interesting bytes wanting to be displayed on the graph. These can often show relationships and reason for dips or
                         increases in entropy at particular points. Bytes within each type are defined as lists of _decimals_, _not_ hex.
+lib str lief or pefile: Which library to use to parse file specific features
 """
-
-# # Get helper functions
-from graphs.helpers import shannon_ent
-# # Get common graph defaults
-from graphs.global_defaults import __figformat__, __figsize__, __figdpi__, __showplt__, __blob__
 
 # # Import graph specific libs
 import matplotlib
@@ -28,14 +24,14 @@ import os
 import json
 import sys
 
-# # https://www.peterbe.com/plog/jsondecodeerror-in-requests.get.json-python-2-and-3
+import lief
+
+# Python 2/3 fix
 import json
 try:
     from json.decoder import JSONDecodeError
 except ImportError:
     JSONDecodeError = ValueError
-
-import lief
 
 import logging
 log = logging.getLogger()
@@ -85,9 +81,8 @@ def args_validation(args):
             if not type(b) == int:
                 raise ArgValidationEx('Error validating --ibytes. Item in list not an int: {} = {}'.format(name, b))
 
-
 # # Generate the graph
-def generate(abs_fpath, fname, blob=__blob__, showplt=__showplt__, chunks=__chunks__, ibytes=__ibytes_dict__, **kwargs):
+def generate(abs_fpath, fname, chunks=__chunks__, ibytes=__ibytes_dict__, **kwargs):
 
     with open(abs_fpath, 'rb') as fh:
         log.debug('Opening: "{}"'.format(fname))
@@ -169,8 +164,8 @@ def generate(abs_fpath, fname, blob=__blob__, showplt=__showplt__, chunks=__chun
     title_gap = '\n'
 
     # # Filetype specific additions
-    if blob:
-        log.warning('Parsing file as blob - no filetype specific features')
+    if kwargs['blob']:
+        log.warning('Parsing file as --blob - no filetype specific features')
     else:
 
         try:
@@ -178,7 +173,7 @@ def generate(abs_fpath, fname, blob=__blob__, showplt=__showplt__, chunks=__chun
             exebin = lief.parse(filepath=abs_fpath)
             log.debug('Parsed with lief as {}'.format(exebin.format))
 
-        except lief.bad_file as e:
+        except (AttributeError, lief.bad_file) as e:
             exebin = None
             log.warning('Failed to parse with lief, parsing like --blob: {}'.format(e))
 
@@ -227,7 +222,7 @@ def generate(abs_fpath, fname, blob=__blob__, showplt=__showplt__, chunks=__chun
     else:
         legends.append(host.legend(loc='upper left', bbox_to_anchor=(1.01, 1), frameon=False))
 
-    if blob:
+    if kwargs['blob']:
         host.set_title('Binary entropy (sampled over {chunksize} byte chunks): {fname}{title_gap}'.format(chunksize=chunksize, fname=fname, title_gap=title_gap))
     else:
         host.set_title('Binary entropy (sampled over {chunksize} byte chunks): {fname}{title_gap}'.format(chunksize=chunksize, fname=fname, title_gap=title_gap))
@@ -272,3 +267,10 @@ def section_colour(text, multi=False):
 
     else:
         return colour_main
+
+# # Calculate entropy given a list
+def shannon_ent(labels, base=256):
+    value, counts = np.unique(labels, return_counts=True)
+    norm_counts = counts / counts.sum()
+    base = e if base is None else base
+    return -(norm_counts * np.log(norm_counts)/np.log(base)).sum()
