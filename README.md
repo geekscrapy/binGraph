@@ -84,5 +84,6 @@ optional arguments:
 # To do:
 
 - Allow user to explicitly define colour to be used for each ```--ibytes``` value.
-- Read from stdin for use with other tools such as Didier Stevens's zipdump.py
-- Output as json/base64 for image data
+- Output as json/base64 for image data - https://gist.github.com/dukenmarga/1e3ad854b77c43d057aa
+- Read from stdin for use with other tools such as Didier Stevens's zipdump.py - Kaitai allows binary array input
+  - ent graph (and others) to use Kaitai as the parser instead of third party libs - bit more extensible
