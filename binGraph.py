@@ -36,7 +36,7 @@ def find_files(search_paths, recurse):
 
         elif os.path.isfile(f) and not os.path.islink(f) and not os.stat(f).st_size == 0:
             abs_fpath = os.path.abspath(f)
-            log.info('File exists: "{}"'.format(abs_fpath))
+            log.info('Found file: "{}"'.format(abs_fpath))
             __files__.append(abs_fpath)
 
         else:
@@ -116,7 +116,7 @@ def get_graph_modules():
 
 
 # ### Main
-logging.basicConfig(stream=sys.stderr, format='%(module)s | %(levelname)s | %(message)s')
+logging.basicConfig(stream=sys.stderr, format='%(name)s | %(levelname)s | %(message)s')
 log = logging.getLogger('binGraph')
 
 # # Try and import the graphs
@@ -184,12 +184,11 @@ if args.graphtype == 'all':
 else:
     __graphtypes__ = { args.graphtype: graphs[args.graphtype] }
 
-log.debug('Generating graphs: {}'.format(', '.join(__graphtypes__.keys()) ))
-
 # # Allow graph modules to verify if their arguments have been set correctly
 for name, module in __graphtypes__.items():
     module.args_validation(args)
 
+log.debug('Generating graphs: {}'.format(', '.join(__graphtypes__.keys()) ))
 
 # # Iterate over all given files
 for index, abs_fpath in enumerate(__files__):

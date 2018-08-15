@@ -22,7 +22,7 @@ from matplotlib.ticker import MaxNLocator
 from collections import Counter
 
 import logging
-log = logging.getLogger()
+log = logging.getLogger('hist')
 
 # # Graph defaults
 __no_zero__ = False

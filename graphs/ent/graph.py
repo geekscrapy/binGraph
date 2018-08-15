@@ -10,6 +10,7 @@ ibytes dicts of lists:  A dict of interesting bytes wanting to be displayed on t
                         increases in entropy at particular points. Bytes within each type are defined as lists of _decimals_, _not_ hex.
 lib str lief or pefile: Which library to use to parse file specific features
 """
+from __future__ import division
 
 # # Import graph specific libs
 import matplotlib
@@ -43,6 +44,7 @@ except ImportError:
     JSONDecodeError = ValueError
 
 import logging
+log = logging.getLogger('ent')
 
 # # Graph defaults
 __chunks__ = 750
@@ -110,7 +112,7 @@ def generate(abs_fpath, fname, blob, chunks=__chunks__, ibytes=__ibytes_dict__, 
         if len(ibytes) > 0:
             byte_ranges = {key: [] for key in ibytes.keys()}
 
-        log.debug('Going for iteration over bytes with chunksize {}'.format(chunksize))
+        log.debug('Producing shannon ent with chunksize {}'.format(chunksize))
 
         shannon_samples = []
         prev_ent = 0
@@ -174,10 +176,10 @@ def generate(abs_fpath, fname, blob, chunks=__chunks__, ibytes=__ibytes_dict__, 
     # # Filetype specific additions
     if not blob:
 
-        bp = bin_parser(abs_fpath)
+        bp = bin_proxy(abs_fpath)
 
         if None in (bp.bin, bp.type):
-            log.warning('Failed to parse binary, parsing like --blob: {}'.format(e))
+            log.warning('Failed to parse binary format, parsing like --blob')
 
         else:
 
@@ -186,13 +188,8 @@ def generate(abs_fpath, fname, blob, chunks=__chunks__, ibytes=__ibytes_dict__, 
                 log.debug('Adding PE customisations')
 
                 # # Entrypoint (EP) pointer and vline
-                v_ep = bp.get_virtual_ep()
-                phy_ep = bp.get_physical_from_rva(v_ep)
-
-                print(hex(v_ep), hex(phy_ep))
-
                 phy_ep_pointer = bp.get_physical_from_rva(bp.get_virtual_ep()) / nr_chunksize
-                print(phy_ep_pointer)
+                log.debug('{}: {}'.format('Entrypoint', hex(bp.get_virtual_ep())))
 
                 host.axvline(x=phy_ep_pointer, linestyle=':', c='r', zorder=zorder-1)
                 host.text(x=phy_ep_pointer, y=1.07, s='EP', rotation=45, va='bottom', ha='left')
@@ -200,13 +197,13 @@ def generate(abs_fpath, fname, blob, chunks=__chunks__, ibytes=__ibytes_dict__, 
                 longest_section_name = 0
 
                 # # Section vlines
-                for index, section in enumerate(bp.bin.sections):
+                for index, section in bp.sections():
                     zorder -= 1
 
                     section_name = safe_section_name(section.name, index)
                     section_offset = section.offset / nr_chunksize
 
-                    log.debug('{}: {}'.format(section_name, section.offset))
+                    log.debug('{}: {}'.format(section_name, hex(section.offset)))
 
                     host.axvline(x=section_offset, linestyle='--', zorder=zorder)
                     host.text(x=section_offset, y=1.07, s=section_name, rotation=45, va='bottom', ha='left')
@@ -240,11 +237,13 @@ def generate(abs_fpath, fname, blob, chunks=__chunks__, ibytes=__ibytes_dict__, 
     # # Return the plt and kwargs for the plt.savefig function
     return (plt, {'bbox_inches':'tight',  'bbox_extra_artists':tuple(legends)})
 
+# ### Helper functions
 
-class bin_parser(object):
+# # Abstracts the bin properties away from specific library calls enabling lief and pefile usage
+class bin_proxy(object):
     """Abstract for different binary parsers types in use"""
     def __init__(self, abs_fpath, lib=None):
-        super(bin_parser, self).__init__()
+        super(bin_proxy, self).__init__()
         self.abs_fpath = abs_fpath
 
         if lib:
@@ -273,10 +272,10 @@ class bin_parser(object):
                 self.bin = lief.parse(filepath=self.abs_fpath)
                 if type(self.bin) == lief.PE.Binary:
                     self.type = 'PE'
+                    log.debug('Parsed with lief as: {}'.format(self.type))
                 else:
-                    raise self.__ParseError('Unsupported file format (lief)')
-
-                log.debug('Parsed with lief as: {}'.format(self.type))
+                    self.bin = None
+                    log.debug('File is a currently unsupported format'.format(self.type))
 
             except lief.bad_file as e:
                 log.warning('Failed to parse with lief: {}'.format(e))
@@ -305,7 +304,32 @@ class bin_parser(object):
         elif self.lib == 'pefile':
             return self.bin.get_physical_by_rva(rva)
 
-# ### Helper functions
+    def sections(self):
+
+        index = 0
+        sections = []
+
+        for lib_section in self.bin.sections:
+
+            section = section_proxy(self.lib, lib_section)
+
+            yield index, section
+            index += 1
+# # Part of bin_proxy - abstracts section calls
+class section_proxy(object):
+    """Abstract for different binary parsers types in use"""
+    def __init__(self, lib, lib_section):
+        super(section_proxy, self).__init__()
+        self.lib = lib
+        self.lib_section = lib_section
+
+        if self.lib == 'lief':
+            self.name = lib_section.name
+            self.offset = lib_section.offset
+        elif self.lib == 'pefile':
+            self.name = str(lib_section.Name.rstrip(b'\x00').decode("utf-8"))
+            self.offset = self.lib_section.get_offset_from_rva(self.lib_section.VirtualAddress)
+
 # # Read files as chunks
 def get_chunk(fh, chunksize=8192):
     while True:
@@ -350,33 +374,52 @@ def shannon_ent(labels, base=256):
     return -(norm_counts * np.log(norm_counts)/np.log(base)).sum()
 
 
+
+
 if __name__ == '__main__':
+
+    import argparse
 
     logging.basicConfig(stream=sys.stderr, format='%(levelname)s | %(message)s', level=logging.DEBUG)
     logging.getLogger('matplotlib').setLevel(logging.CRITICAL)
     log = logging.getLogger('ent')
 
+    # ## Global graphing default values
+    __figformat__ = 'png'   # Output format of saved figure
+    __figsize__ = (12,4)    # Size of figure in inches
+    __figdpi__ = 100        # DPI of figure
+    __showplt__ = False     # Show the plot interactively
+    __blob__ = False        # Treat all files as binary blobs. Disable intelligently parsing of file format specific features.
 
-    abs_fpath = '/Users/Funvacuum/Downloads/odbg110/OLLYDBG.EXE'
-    fname = 'OLLYDBG.EXE'
-    abs_save_fpath = './ent-OLLYDBG.EXE.png'
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-f', '--file', type=str, required=True, metavar='malware.exe', help='Give me a graph of this file. See - if this is the only argument specified.')
+    parser.add_argument('--showplt', action='store_true', default=__showplt__, help='Show plot interactively (disables saving to file)')
+    parser.add_argument('--format', type=str, default=__figformat__, choices=['png', 'pdf', 'ps', 'eps','svg'], required=False, metavar='png', help='Graph output format')
+    parser.add_argument('--figsize', type=int, nargs=2, default=__figsize__, metavar='#', help='Figure width and height in inches')
+    parser.add_argument('--dpi', type=int, default=__figdpi__, metavar=__figdpi__, help='Figure dpi')
+    parser.add_argument('--blob', action='store_true', default=__blob__, help='Do not intelligently parse certain file types. Treat all files as a binary blob. E.g. don\'t add PE entry point or section splitter to the graph')
 
-    # abs_fpath = '/Users/Funvacuum/Downloads/iconified.zip'
-    # fname = 'iconified.zip'
-    # abs_save_fpath = './ent-iconified.zip.png'
+    args_setup(parser)
 
+    args = parser.parse_args()
 
-    plt, save_kwargs = generate(abs_fpath, fname, **{'blob': False})
+    args.graphtype = __name__
+
+    args_validation(args)
+
+    args_dict = args.__dict__
+    args_dict['abs_fpath'] = args.file
+    args_dict['fname'] = os.path.basename(args.file)
+
+    plt, save_kwargs = generate(**args_dict)
 
     fig = plt.gcf()
-    fig.set_size_inches((12,4), forward=True)
-
+    fig.set_size_inches(*args.figsize, forward=True)
     plt.tight_layout()
 
-    plt.savefig(abs_save_fpath, format='png', dpi=100, forward=True, **save_kwargs)
-    log.info('Graph saved to: "{}"'.format(abs_save_fpath))
-
-    plt.clf()
-    plt.cla()
-    plt.close()
-
+    if args.showplt:
+        log.debug('Opening graph interactively')
+        plt.show()
+    else:
+        plt.savefig(abs_save_fpath, format=args.format, dpi=args.dpi, forward=True, **save_kwargs)
+        log.info('Graph saved to: "{}"'.format(abs_save_fpath))
