@@ -12,9 +12,6 @@ no_order bool:  Remove the ordered histogram - it shows overall distribution
 
 from __future__ import division
 
-# # Get common graph defaults
-from graphs.global_defaults import __figformat__, __figsize__, __figdpi__, __showplt__
-
 import os
 import numpy as np
 import matplotlib
@@ -25,7 +22,7 @@ from matplotlib.ticker import MaxNLocator
 from collections import Counter
 
 import logging
-log = logging.getLogger()
+log = logging.getLogger('hist')
 
 # # Graph defaults
 __no_zero__ = False

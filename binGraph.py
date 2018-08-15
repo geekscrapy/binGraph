@@ -6,7 +6,14 @@ import os
 import logging
 import argparse
 
-#### Helper functions
+# ## Global graphing default values
+__figformat__ = 'png'   # Output format of saved figure
+__figsize__ = (12,4)    # Size of figure in inches
+__figdpi__ = 100        # DPI of figure
+__showplt__ = False     # Show the plot interactively
+__blob__ = False        # Treat all files as binary blobs. Disable intelligently parsing of file format specific features.
+
+# ### Helper functions
 
 # # Gather files to process - give it a list of paths (files or directories)
 # # and it will return all files in a list
@@ -29,7 +36,7 @@ def find_files(search_paths, recurse):
 
         elif os.path.isfile(f) and not os.path.islink(f) and not os.stat(f).st_size == 0:
             abs_fpath = os.path.abspath(f)
-            log.info('File exists: "{}"'.format(abs_fpath))
+            log.info('Found file: "{}"'.format(abs_fpath))
             __files__.append(abs_fpath)
 
         else:
@@ -109,11 +116,8 @@ def get_graph_modules():
 
 
 # ### Main
-logging.basicConfig(stream=sys.stderr, format='Verbose | %(levelname)s | %(message)s')
+logging.basicConfig(stream=sys.stderr, format='%(name)s | %(levelname)s | %(message)s')
 log = logging.getLogger('binGraph')
-
-# # Import default values functions
-from graphs import global_defaults as defaults
 
 # # Try and import the graphs
 try:
@@ -129,11 +133,11 @@ parser.add_argument('-r', '--recurse', action='store_true', help='If --file is a
 parser.add_argument('-', dest='__dummy', action='store_true', help='*** Required if --file or -f is the only argument given before a graph type is provided (it\'s greedy!). E.g. "binGraph.py --file mal.exe - bin_ent"')
 parser.add_argument('-p', '--prefix', type=str, help='Saved graph output filename (without extension)')
 parser.add_argument('-o', '--out', type=str, dest='save_dir', default=os.getcwd(), metavar='/data/graphs/', help='Where to save the graph files')
-parser.add_argument('--showplt', action='store_true', default=defaults.__showplt__, help='Show plot interactively (disables saving to file)')
-parser.add_argument('--format', type=str, default=defaults.__figformat__, choices=['png', 'pdf', 'ps', 'eps','svg'], required=False, metavar='png', help='Graph output format')
-parser.add_argument('--figsize', type=int, nargs=2, default=defaults.__figsize__, metavar='#', help='Figure width and height in inches')
-parser.add_argument('--dpi', type=int, default=defaults.__figdpi__, metavar=defaults.__figdpi__, help='Figure dpi')
-parser.add_argument('--blob', action='store_true', default=defaults.__blob__, help='Do not intelligently parse certain file types. Treat all files as a binary blob. E.g. don\'t add PE entry point or section splitter to the graph')
+parser.add_argument('--showplt', action='store_true', default=__showplt__, help='Show plot interactively (disables saving to file)')
+parser.add_argument('--format', type=str, default=__figformat__, choices=['png', 'pdf', 'ps', 'eps','svg'], required=False, metavar='png', help='Graph output format')
+parser.add_argument('--figsize', type=int, nargs=2, default=__figsize__, metavar='#', help='Figure width and height in inches')
+parser.add_argument('--dpi', type=int, default=__figdpi__, metavar=__figdpi__, help='Figure dpi')
+parser.add_argument('--blob', action='store_true', default=__blob__, help='Do not intelligently parse certain file types. Treat all files as a binary blob. E.g. don\'t add PE entry point or section splitter to the graph')
 parser.add_argument('-v', '--verbose', action='store_true', help='Print debug information to stderr')
 
 subparsers = parser.add_subparsers(dest='graphtype', help='Graph type to generate')
@@ -180,15 +184,11 @@ if args.graphtype == 'all':
 else:
     __graphtypes__ = { args.graphtype: graphs[args.graphtype] }
 
-log.debug('Generating graphs: {}'.format(', '.join(__graphtypes__.keys()) ))
-
 # # Allow graph modules to verify if their arguments have been set correctly
 for name, module in __graphtypes__.items():
-    try:
-        module.args_validation(args)
-    except Exception as e:
-        log.critical(e)
-        exit(0)
+    module.args_validation(args)
+
+log.debug('Generating graphs: {}'.format(', '.join(__graphtypes__.keys()) ))
 
 # # Iterate over all given files
 for index, abs_fpath in enumerate(__files__):

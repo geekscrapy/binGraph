@@ -1,18 +1,16 @@
 """
 Entropy and byte occurrence analysis over all file
 -------------------------------------------
-abs_fpath:              Absolute file path - File to load and analyse
-fname:                  Filename
+abs_fpath str:          Absolute file path - File to load and analyse
+fname str:              Filename
+blob bool:              Do not intelligently parse certain file types. Treat all files as a binary blob. E.g. don\'t add PE entry point or section splitter to the graph
 
 chunks int:             How many chunks to split the file over. Smaller chunks give a more averaged graph, a larger number of chunks give more detail
 ibytes dicts of lists:  A dict of interesting bytes wanting to be displayed on the graph. These can often show relationships and reason for dips or
                         increases in entropy at particular points. Bytes within each type are defined as lists of _decimals_, _not_ hex.
+lib str lief or pefile: Which library to use to parse file specific features
 """
-
-# # Get helper functions
-from graphs.helpers import shannon_ent
-# # Get common graph defaults
-from graphs.global_defaults import __figformat__, __figsize__, __figdpi__, __showplt__, __blob__
+from __future__ import division
 
 # # Import graph specific libs
 import matplotlib
@@ -28,17 +26,25 @@ import os
 import json
 import sys
 
-# # https://www.peterbe.com/plog/jsondecodeerror-in-requests.get.json-python-2-and-3
+# # Try lief first, it reads more formats
+try:
+    import lief
+except ImportError as e1:
+    try:
+        import pefile
+    except ImportError as e2:
+        pass
+
+
+# # Python 2/3 fix
 import json
 try:
     from json.decoder import JSONDecodeError
 except ImportError:
     JSONDecodeError = ValueError
 
-import lief
-
 import logging
-log = logging.getLogger()
+log = logging.getLogger('ent')
 
 # # Graph defaults
 __chunks__ = 750
@@ -85,9 +91,8 @@ def args_validation(args):
             if not type(b) == int:
                 raise ArgValidationEx('Error validating --ibytes. Item in list not an int: {} = {}'.format(name, b))
 
-
 # # Generate the graph
-def generate(abs_fpath, fname, blob=__blob__, showplt=__showplt__, chunks=__chunks__, ibytes=__ibytes_dict__, **kwargs):
+def generate(abs_fpath, fname, blob, chunks=__chunks__, ibytes=__ibytes_dict__, **kwargs):
 
     with open(abs_fpath, 'rb') as fh:
         log.debug('Opening: "{}"'.format(fname))
@@ -107,7 +112,7 @@ def generate(abs_fpath, fname, blob=__blob__, showplt=__showplt__, chunks=__chun
         if len(ibytes) > 0:
             byte_ranges = {key: [] for key in ibytes.keys()}
 
-        log.debug('Going for iteration over bytes with chunksize {}'.format(chunksize))
+        log.debug('Producing shannon ent with chunksize {}'.format(chunksize))
 
         shannon_samples = []
         prev_ent = 0
@@ -169,39 +174,36 @@ def generate(abs_fpath, fname, blob=__blob__, showplt=__showplt__, chunks=__chun
     title_gap = '\n'
 
     # # Filetype specific additions
-    if blob:
-        log.warning('Parsing file as blob - no filetype specific features')
-    else:
+    if not blob:
 
-        try:
+        bp = bin_proxy(abs_fpath)
 
-            exebin = lief.parse(filepath=abs_fpath)
-            log.debug('Parsed with lief as {}'.format(exebin.format))
+        if None in (bp.bin, bp.type):
+            log.warning('Failed to parse binary format, parsing like --blob')
 
-        except lief.bad_file as e:
-            exebin = None
-            log.warning('Failed to parse with lief, parsing like --blob: {}'.format(e))
+        else:
 
-        if exebin:
-            if type(exebin) == lief.PE.Binary:
+            if bp.type == 'PE':
 
                 log.debug('Adding PE customisations')
 
                 # # Entrypoint (EP) pointer and vline
-                v_ep = exebin.va_to_offset(exebin.entrypoint) / nr_chunksize
-                host.axvline(x=v_ep, linestyle=':', c='r', zorder=zorder-1)
-                host.text(x=v_ep, y=1.07, s='EP', rotation=45, va='bottom', ha='left')
+                phy_ep_pointer = bp.get_physical_from_rva(bp.get_virtual_ep()) / nr_chunksize
+                log.debug('{}: {}'.format('Entrypoint', hex(bp.get_virtual_ep())))
+
+                host.axvline(x=phy_ep_pointer, linestyle=':', c='r', zorder=zorder-1)
+                host.text(x=phy_ep_pointer, y=1.07, s='EP', rotation=45, va='bottom', ha='left')
 
                 longest_section_name = 0
 
                 # # Section vlines
-                for index, section in enumerate(exebin.sections):
+                for index, section in bp.sections():
                     zorder -= 1
 
                     section_name = safe_section_name(section.name, index)
                     section_offset = section.offset / nr_chunksize
 
-                    log.debug('{}: {}'.format(section_name, section.offset))
+                    log.debug('{}: {}'.format(section_name, hex(section.offset)))
 
                     host.axvline(x=section_offset, linestyle='--', zorder=zorder)
                     host.text(x=section_offset, y=1.07, s=section_name, rotation=45, va='bottom', ha='left')
@@ -213,7 +215,7 @@ def generate(abs_fpath, fname, blob=__blob__, showplt=__showplt__, chunks=__chun
                 title_gap = int(longest_section_name / 3) * '\n'
                 
             else:
-                log.debug('Not currently customised: {}'.format(exebin.format))
+                log.debug('Not currently customised: {}'.format(bp.type))
 
     # # Plot the entropy graph
     host.set_xbound(lower=-0.5, upper=len(shannon_samples)+0.5)
@@ -235,8 +237,99 @@ def generate(abs_fpath, fname, blob=__blob__, showplt=__showplt__, chunks=__chun
     # # Return the plt and kwargs for the plt.savefig function
     return (plt, {'bbox_inches':'tight',  'bbox_extra_artists':tuple(legends)})
 
-
 # ### Helper functions
+
+# # Abstracts the bin properties away from specific library calls enabling lief and pefile usage
+class bin_proxy(object):
+    """Abstract for different binary parsers types in use"""
+    def __init__(self, abs_fpath, lib=None):
+        super(bin_proxy, self).__init__()
+        self.abs_fpath = abs_fpath
+
+        if lib:
+            self.lib = lib
+        else:
+
+            if 'lief' in sys.modules:
+                self.lib = 'lief'
+            elif 'pefile' in sys.modules:
+                self.lib = 'pefile'
+            else:
+                # # We dont have a parser
+                return None, None
+
+        self.bin, self.type = None, None
+        self.__parse_bin()
+
+    class __ParseError(Exception):
+
+        pass
+
+    def __parse_bin(self):
+
+        if self.lib == 'lief':
+            try:
+                self.bin = lief.parse(filepath=self.abs_fpath)
+                if type(self.bin) == lief.PE.Binary:
+                    self.type = 'PE'
+                    log.debug('Parsed with lief as: {}'.format(self.type))
+                else:
+                    self.bin = None
+                    log.debug('File is a currently unsupported format'.format(self.type))
+
+            except lief.bad_file as e:
+                log.warning('Failed to parse with lief: {}'.format(e))
+
+        elif self.lib == 'pefile':
+            try:
+                self.bin = pefile.PE(self.abs_fpath)
+                self.type = 'PE'
+
+                log.debug('Parsed with pefile as: {}'.format(self.type))
+
+            except pefile.PEFormatError as e:
+                log.warning('Failed to parse with pefile: {}'.format(e))
+
+    def get_virtual_ep(self):
+
+        if self.lib == 'lief':
+            return self.bin.optional_header.addressof_entrypoint
+        elif self.lib == 'pefile':
+            return self.bin.OPTIONAL_HEADER.AddressOfEntryPoint
+
+    def get_physical_from_rva(self, rva):
+
+        if self.lib == 'lief':
+            return self.bin.rva_to_offset(rva)
+        elif self.lib == 'pefile':
+            return self.bin.get_physical_by_rva(rva)
+
+    def sections(self):
+
+        index = 0
+        sections = []
+
+        for lib_section in self.bin.sections:
+
+            section = section_proxy(self.lib, lib_section)
+
+            yield index, section
+            index += 1
+# # Part of bin_proxy - abstracts section calls
+class section_proxy(object):
+    """Abstract for different binary parsers types in use"""
+    def __init__(self, lib, lib_section):
+        super(section_proxy, self).__init__()
+        self.lib = lib
+        self.lib_section = lib_section
+
+        if self.lib == 'lief':
+            self.name = lib_section.name
+            self.offset = lib_section.offset
+        elif self.lib == 'pefile':
+            self.name = str(lib_section.Name.rstrip(b'\x00').decode("utf-8"))
+            self.offset = self.lib_section.get_offset_from_rva(self.lib_section.VirtualAddress)
+
 # # Read files as chunks
 def get_chunk(fh, chunksize=8192):
     while True:
@@ -272,3 +365,61 @@ def section_colour(text, multi=False):
 
     else:
         return colour_main
+
+# # Calculate entropy given a list
+def shannon_ent(labels, base=256):
+    value, counts = np.unique(labels, return_counts=True)
+    norm_counts = counts / counts.sum()
+    base = e if base is None else base
+    return -(norm_counts * np.log(norm_counts)/np.log(base)).sum()
+
+
+
+
+if __name__ == '__main__':
+
+    import argparse
+
+    logging.basicConfig(stream=sys.stderr, format='%(levelname)s | %(message)s', level=logging.DEBUG)
+    logging.getLogger('matplotlib').setLevel(logging.CRITICAL)
+    log = logging.getLogger('ent')
+
+    # ## Global graphing default values
+    __figformat__ = 'png'   # Output format of saved figure
+    __figsize__ = (12,4)    # Size of figure in inches
+    __figdpi__ = 100        # DPI of figure
+    __showplt__ = False     # Show the plot interactively
+    __blob__ = False        # Treat all files as binary blobs. Disable intelligently parsing of file format specific features.
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-f', '--file', type=str, required=True, metavar='malware.exe', help='Give me a graph of this file. See - if this is the only argument specified.')
+    parser.add_argument('--showplt', action='store_true', default=__showplt__, help='Show plot interactively (disables saving to file)')
+    parser.add_argument('--format', type=str, default=__figformat__, choices=['png', 'pdf', 'ps', 'eps','svg'], required=False, metavar='png', help='Graph output format')
+    parser.add_argument('--figsize', type=int, nargs=2, default=__figsize__, metavar='#', help='Figure width and height in inches')
+    parser.add_argument('--dpi', type=int, default=__figdpi__, metavar=__figdpi__, help='Figure dpi')
+    parser.add_argument('--blob', action='store_true', default=__blob__, help='Do not intelligently parse certain file types. Treat all files as a binary blob. E.g. don\'t add PE entry point or section splitter to the graph')
+
+    args_setup(parser)
+
+    args = parser.parse_args()
+
+    args.graphtype = __name__
+
+    args_validation(args)
+
+    args_dict = args.__dict__
+    args_dict['abs_fpath'] = args.file
+    args_dict['fname'] = os.path.basename(args.file)
+
+    plt, save_kwargs = generate(**args_dict)
+
+    fig = plt.gcf()
+    fig.set_size_inches(*args.figsize, forward=True)
+    plt.tight_layout()
+
+    if args.showplt:
+        log.debug('Opening graph interactively')
+        plt.show()
+    else:
+        plt.savefig(abs_save_fpath, format=args.format, dpi=args.dpi, forward=True, **save_kwargs)
+        log.info('Graph saved to: "{}"'.format(abs_save_fpath))
