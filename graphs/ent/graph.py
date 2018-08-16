@@ -375,7 +375,6 @@ def shannon_ent(labels, base=256):
 
 
 
-
 if __name__ == '__main__':
 
     import argparse
@@ -410,6 +409,7 @@ if __name__ == '__main__':
     args_dict = args.__dict__
     args_dict['abs_fpath'] = args.file
     args_dict['fname'] = os.path.basename(args.file)
+    args_dict['abs_save_fpath'] = '{}.{}'.format(os.path.basename(args_dict['abs_fpath']), args.format)
 
     plt, save_kwargs = generate(**args_dict)
 
@@ -421,5 +421,5 @@ if __name__ == '__main__':
         log.debug('Opening graph interactively')
         plt.show()
     else:
-        plt.savefig(abs_save_fpath, format=args.format, dpi=args.dpi, forward=True, **save_kwargs)
-        log.info('Graph saved to: "{}"'.format(abs_save_fpath))
+        plt.savefig(args_dict['abs_save_fpath'], format=args.format, dpi=args.dpi, forward=True, **save_kwargs)
+        log.info('Graph saved to: "{}"'.format(args_dict['abs_save_fpath']))

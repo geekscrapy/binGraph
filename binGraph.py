@@ -78,11 +78,6 @@ def gen_names(ffrmt, abs_fpath, abs_save_path, save_prefix=None, graphtype=None,
 
     return abs_save_fpath, os.path.basename(abs_fpath), cleaned_fname
 
-# # Add watermark
-def add_watermark(fig):
-    credit = plt.imread(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'credit.png'))
-    fig.figimage(credit, alpha=.5, zorder=99)
-
 # # Dynamically import graphtypes
 def get_graph_modules():
 
@@ -96,7 +91,7 @@ def get_graph_modules():
         for importer, package_name, _ in pkgutil.iter_modules([graph]):
 
             if sys.version_info[0] < 3:
-                full_package_name = 'graphs.{}'.format(os.path.basename(graph), package_name)
+                full_package_name = 'graphs.{}'.format(os.path.basename(graph))
             else:
                 full_package_name = 'graphs.{}.graph'.format(os.path.basename(graph), package_name)
 
@@ -209,7 +204,10 @@ for index, abs_fpath in enumerate(__files__):
         fig = plt.gcf()
         fig.set_size_inches(*args.figsize, forward=True)
 
-        add_watermark(fig)
+        # # Add watermark
+        ax = plt.gca()
+        ax.text(-0.03, -0.15, 'github.com/geekscrapy/binGraph', ha='left', va='top', family='monospace', transform=ax.transAxes)
+
         plt.tight_layout()
 
         if args.showplt:

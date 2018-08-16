@@ -112,3 +112,54 @@ def generate(abs_fpath, fname, no_zero=__no_zero__, width=__width__, g_log=__g_l
     plt.title('Byte histogram: {}\n'.format(fname))
 
     return plt, {}
+
+
+
+if __name__ == '__main__':
+
+    import argparse, sys
+
+    logging.basicConfig(stream=sys.stderr, format='%(levelname)s | %(message)s', level=logging.DEBUG)
+    logging.getLogger('matplotlib').setLevel(logging.CRITICAL)
+    log = logging.getLogger('hist')
+
+    # ## Global graphing default values
+    __figformat__ = 'png'   # Output format of saved figure
+    __figsize__ = (12,4)    # Size of figure in inches
+    __figdpi__ = 100        # DPI of figure
+    __showplt__ = False     # Show the plot interactively
+    __blob__ = False        # Treat all files as binary blobs. Disable intelligently parsing of file format specific features.
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-f', '--file', type=str, required=True, metavar='malware.exe', help='Give me a graph of this file. See - if this is the only argument specified.')
+    parser.add_argument('--showplt', action='store_true', default=__showplt__, help='Show plot interactively (disables saving to file)')
+    parser.add_argument('--format', type=str, default=__figformat__, choices=['png', 'pdf', 'ps', 'eps','svg'], required=False, metavar='png', help='Graph output format')
+    parser.add_argument('--figsize', type=int, nargs=2, default=__figsize__, metavar='#', help='Figure width and height in inches')
+    parser.add_argument('--dpi', type=int, default=__figdpi__, metavar=__figdpi__, help='Figure dpi')
+    parser.add_argument('--blob', action='store_true', default=__blob__, help='Do not intelligently parse certain file types. Treat all files as a binary blob. E.g. don\'t add PE entry point or section splitter to the graph')
+
+    args_setup(parser)
+
+    args = parser.parse_args()
+
+    args.graphtype = __name__
+
+    args_validation(args)
+
+    args_dict = args.__dict__
+    args_dict['abs_fpath'] = args.file
+    args_dict['fname'] = os.path.basename(args.file)
+    args_dict['abs_save_fpath'] = '{}.{}'.format(os.path.basename(args_dict['abs_fpath']), args.format)
+
+    plt, save_kwargs = generate(**args_dict)
+
+    fig = plt.gcf()
+    fig.set_size_inches(*args.figsize, forward=True)
+    plt.tight_layout()
+
+    if args.showplt:
+        log.debug('Opening graph interactively')
+        plt.show()
+    else:
+        plt.savefig(args_dict['abs_save_fpath'], format=args.format, dpi=args.dpi, forward=True, **save_kwargs)
+        log.info('Graph saved to: "{}"'.format(args_dict['abs_save_fpath']))
