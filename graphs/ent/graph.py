@@ -44,7 +44,7 @@ except ImportError:
     JSONDecodeError = ValueError
 
 import logging
-log = logging.getLogger('ent')
+log = logging.getLogger('graph.ent')
 
 # # Graph defaults
 __chunks__ = 750
@@ -375,7 +375,6 @@ def shannon_ent(labels, base=256):
 
 
 
-
 if __name__ == '__main__':
 
     import argparse
@@ -410,16 +409,21 @@ if __name__ == '__main__':
     args_dict = args.__dict__
     args_dict['abs_fpath'] = args.file
     args_dict['fname'] = os.path.basename(args.file)
+    args_dict['abs_save_fpath'] = '{}.{}'.format(os.path.basename(args_dict['abs_fpath']), args.format)
 
     plt, save_kwargs = generate(**args_dict)
 
     fig = plt.gcf()
     fig.set_size_inches(*args.figsize, forward=True)
+
+    ax = plt.gca()
+    ax.text(-0.03, -0.15, 'github.com/geekscrapy/binGraph', ha='left', va='top', family='monospace', transform=ax.transAxes)
+
     plt.tight_layout()
 
     if args.showplt:
         log.debug('Opening graph interactively')
         plt.show()
     else:
-        plt.savefig(abs_save_fpath, format=args.format, dpi=args.dpi, forward=True, **save_kwargs)
-        log.info('Graph saved to: "{}"'.format(abs_save_fpath))
+        plt.savefig(args_dict['abs_save_fpath'], format=args.format, dpi=args.dpi, forward=True, **save_kwargs)
+        log.info('Graph saved to: "{}"'.format(args_dict['abs_save_fpath']))
