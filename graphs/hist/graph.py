@@ -22,7 +22,7 @@ from matplotlib.ticker import MaxNLocator
 from collections import Counter
 
 import logging
-log = logging.getLogger('hist')
+log = logging.getLogger('graph.hist')
 
 # # Graph defaults
 __no_zero__ = False
@@ -155,6 +155,10 @@ if __name__ == '__main__':
 
     fig = plt.gcf()
     fig.set_size_inches(*args.figsize, forward=True)
+
+    ax = plt.gca()
+    ax.text(-0.03, -0.15, 'github.com/geekscrapy/binGraph', ha='left', va='top', family='monospace', transform=ax.transAxes)
+
     plt.tight_layout()
 
     if args.showplt:

@@ -44,7 +44,7 @@ except ImportError:
     JSONDecodeError = ValueError
 
 import logging
-log = logging.getLogger('ent')
+log = logging.getLogger('graph.ent')
 
 # # Graph defaults
 __chunks__ = 750
@@ -415,6 +415,10 @@ if __name__ == '__main__':
 
     fig = plt.gcf()
     fig.set_size_inches(*args.figsize, forward=True)
+
+    ax = plt.gca()
+    ax.text(-0.03, -0.15, 'github.com/geekscrapy/binGraph', ha='left', va='top', family='monospace', transform=ax.transAxes)
+
     plt.tight_layout()
 
     if args.showplt:
