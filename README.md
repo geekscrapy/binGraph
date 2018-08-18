@@ -47,23 +47,29 @@ optional arguments:
 
 ## Binary Entropy - ent
 Shows the entropy over certain sized chunked samples of the binary file. The sample size is scaled to the ```--chunks``` option (defaults to 750). More chunks give mode detail, but can get messy! The ```--ibytes``` option provides a method to highlight certain bytes and their occurence within that sample set. This often has direct reflection to why entropy goes up or down - lots of 0's? Entropy goes down, and 0's go up!
+```--ibytes``` must be of json format, of an array of objects. Objects must contain a ```name```, and ```bytes``` values. ```bytes``` is an array of integers which are interpretted as hex bytes. The optional ```colour``` value can be a matplotlib colour (e.g. r, b or hex with/or without alpha)
 
 ![Binary entropy graph](example-ent.png "Binary entropy graph - from PE executable")
 !MALWARE! Sample from: https://cape[.]contextis[.]com/file/CAPE/9472/ad5a729e7c4047c946601e5533b1dfa3983a0d84da61b743dda1ca3b1c956ec5/
 ```
 $ python binGraph.py ent --help
-usage: binGraph.py ent [-h] [-c 750] [--ibytes ["{\"0's\": [0] , \"Exploit\":
-                       [44, 144] }"]]
+usage: binGraph.py ent [-h] [-c 750] [--ibytes ] [--entcolour #cf3da2ff]
 
 optional arguments:
   -h, --help            show this help message and exit
   -c 750, --chunks 750  Defines how many chunks the binary is split into (and
                         therefore the amount of bytes submitted for shannon
                         sampling per time). Higher number gives more detail
-  --ibytes ["{\"0's\": [0] , \"Exploit\": [44, 144] }"]
-                        JSON of bytes to include in the graph. To disable this
+  --ibytes []           JSON of bytes to include in the graph. To disable this
                         option, either set the flag without an argument, or
-                        set value to "{}"
+                        set value to "[]". An example of expected values: "[
+                        {"name":"0's", "colour": "#ef0ef0", "bytes": [0]},
+                        {"name":"Exploit", "bytes": [44,144]} ]" . The easiest
+                        way to construct these values is to create a
+                        dictionary and convert it using
+                        'print(json.loads(dict))'
+  --entcolour #cf3da2ff
+                        Colour of the Entropy line
 ```
 
 ## Binary Histogram - hist
@@ -74,15 +80,19 @@ Provides an insight into the occurence of all bytes in the file. Two graphs are 
 ```
 $ python binGraph.py hist --help
 usage: binGraph.py hist [-h] [--no_zero] [--width 1] [--no_log] [--no_order]
+                        [--colours #ff01d5 #ff01d5]
 
 optional arguments:
-  -h, --help  show this help message and exit
-  --no_zero   Remove 0x00 from the graph, sometimes this blows other results
-              due to there being numerous amounts - also see --no_log
-  --width 1   Sample width
-  --no_log    Do _not_ apply a log scale to occurance axis
-  --no_order  Remove the ordered histogram - It shows overall distribution
-              when on
+  -h, --help            show this help message and exit
+  --no_zero             Remove 0x00 from the graph, sometimes this blows other
+                        results due to there being numerous amounts - also see
+                        --no_log
+  --width 1             Sample width
+  --no_log              Do _not_ apply a log scale to occurance axis
+  --no_order            Remove the ordered histogram - It shows overall
+                        distribution when on
+  --colours #ff01d5 #ff01d5
+                        Colours for the graph. First is the ordered graph
 ```
 
 # To do:

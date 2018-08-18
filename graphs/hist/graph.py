@@ -29,6 +29,7 @@ __no_zero__ = False
 __width__ = 1
 __g_log__ = True
 __no_order__ = False
+__colours__ = ['#ff01d5', '#01ff2b']
 
 # Set args in args parse
 def args_setup(arg_parser):
@@ -37,16 +38,16 @@ def args_setup(arg_parser):
     arg_parser.add_argument('--width', type=int, default=__width__, metavar=__width__, help='Sample width')
     arg_parser.add_argument('--no_log', action='store_false', default=__g_log__, help='Do _not_ apply a log scale to occurance axis')
     arg_parser.add_argument('--no_order', action='store_true', default=__no_order__, help='Remove the ordered histogram - It shows overall distribution when on')
+    arg_parser.add_argument('--colours', type=str, nargs=2, default=__colours__, metavar="#ff01d5", help='Colours for the graph. First is the ordered graph')
 
 # Validate graph specific arguments
+class ArgValidationEx(Exception): pass
 def args_validation(args):
 
     # # Test to see what matplotlib backend is setup
     backend = matplotlib.get_backend()
     if not backend == 'TkAgg':
         log.warning('{} matplotlib backend in use. This graph generation was tested with "TkAgg", bugs may lie ahead...'.format(backend))
-    else:
-        log.debug('Matplotlib backend: {}'.format(backend))
 
     # # Test to see if we should use defaults
     if args.graphtype == 'all':
@@ -54,8 +55,18 @@ def args_validation(args):
         args.width = __width__
         args.no_log = __g_log__
         args.no_order = __no_order__
+        args.colours = __colours__
 
-def generate(abs_fpath, fname, no_zero=__no_zero__, width=__width__, g_log=__g_log__, no_order=__no_order__, **kwargs):
+    print(dir(matplotlib.colors))
+
+    try:
+        args.colours[0] = matplotlib.colors.to_rgba(args.colours[0])
+        args.colours[1] = matplotlib.colors.to_rgba(args.colours[1])
+    except ValueError as e:
+        raise ArgValidationEx('Error parsing --colours: {}'.format(e))
+    
+
+def generate(abs_fpath, fname, no_zero=__no_zero__, width=__width__, g_log=__g_log__, no_order=__no_order__, colours=__colours__, **kwargs):
 
     file_array = []
     with open(abs_fpath, 'rb') as fh:
@@ -75,7 +86,7 @@ def generate(abs_fpath, fname, no_zero=__no_zero__, width=__width__, g_log=__g_l
     for x in range(no_zero, 256):
         ordered_row.append(c[x])
 
-    ax.bar(np.array(list(range(no_zero, 256))), np.array(ordered_row), align='edge', width=width, label='Bytes', color='r', log=g_log, zorder=0, linewidth=0)
+    ax.bar(np.array(list(range(no_zero, 256))), np.array(ordered_row), align='edge', width=width, label='Bytes', color=colours[0], log=g_log, zorder=0, linewidth=0)
     log.debug('Graphed binary array')
 
     # # Add a byte hist ordered by occurrence - shows general distribution
@@ -88,7 +99,7 @@ def generate(abs_fpath, fname, no_zero=__no_zero__, width=__width__, g_log=__g_l
         sorted_row.sort()
         sorted_row.reverse()
 
-        ax.bar(np.array(list(range(no_zero, 256))), np.array(sorted_row), width=width, label='Ordered', color='b', log=g_log, zorder=1, alpha=.5, linewidth=0)
+        ax.bar(np.array(list(range(no_zero, 256))), np.array(sorted_row), width=width, label='Ordered', color=colours[1], log=g_log, zorder=1, alpha=.5, linewidth=0)
         log.debug('Graphed ordered binary array')
 
     # # Formatting and watermarking

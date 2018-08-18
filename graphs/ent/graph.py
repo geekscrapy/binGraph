@@ -6,9 +6,12 @@ fname str:              Filename
 blob bool:              Do not intelligently parse certain file types. Treat all files as a binary blob. E.g. don\'t add PE entry point or section splitter to the graph
 
 chunks int:             How many chunks to split the file over. Smaller chunks give a more averaged graph, a larger number of chunks give more detail
-ibytes dicts of lists:  A dict of interesting bytes wanting to be displayed on the graph. These can often show relationships and reason for dips or
-                        increases in entropy at particular points. Bytes within each type are defined as lists of _decimals_, _not_ hex.
-lib str lief or pefile: Which library to use to parse file specific features
+ibytes list of dicts:   Dicts are interesting bytes wanting to be displayed on the graph. These can often show relationships and reason for dips or
+                        increases in entropy at particular points. Bytes within each type are defined as lists of _decimals_, _not_ hex. Fields are:
+                        name = The printed name
+                        bytes = The bytes to represent
+                        colour = The colour of the line
+entcolour str           Colour of the entropy graph
 """
 from __future__ import division
 
@@ -48,13 +51,15 @@ log = logging.getLogger('graph.ent')
 
 # # Graph defaults
 __chunks__ = 750
-__ibytes__= '{"0\'s": [0], "Printable ASCII": [32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126], "Exploit": [44, 144]}'
+__ibytes__= '[ {"name":"0\'s", "colour": "#15ff04", "bytes": [0]}, {"name":"Printable ASCII", "colour":"b", "bytes": [32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,71,72,73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88,89,90,91,92,93,94,95,96,97,98,99,100,101,102,103,104,105,106,107,108,109,110,111,112,113,114,115,116,117,118,119,120,121,122,123,124,125,126]}, {"name":"Exploit", "bytes": [44,144], "colour":"#ff2b01"} ]'
 __ibytes_dict__ = json.loads(__ibytes__)
+__entcolour__ = '#ff01d5'
 
 # # Set args in args parse - the given parser is a sub parser
 def args_setup(arg_parser):
     arg_parser.add_argument('-c','--chunks', type=int, default=__chunks__, metavar='750', help='Defines how many chunks the binary is split into (and therefore the amount of bytes submitted for shannon sampling per time). Higher number gives more detail')
-    arg_parser.add_argument('--ibytes', type=str, nargs='?', default=__ibytes__, metavar='\"{\\\"0\'s\\\": [0] , \\\"Exploit\\\": [44, 144] }\"', help='JSON of bytes to include in the graph. To disable this option, either set the flag without an argument, or set value to "{}"')
+    arg_parser.add_argument('--ibytes', type=str, nargs='?', metavar='', default=__ibytes__, help='JSON of bytes to include in the graph. To disable this option, either set the flag without an argument, or set value to "[]". An example of expected values: \"[ {"name":"0\'s", "colour": "#ef0ef0", "bytes": [0]}, {"name":"Exploit", "bytes": [44,144]} ]" . The easiest way to construct these values is to create a dictionary and convert it using \'print(json.loads(dict))\'')
+    arg_parser.add_argument('--entcolour', type=str, metavar='#cf3da2ff', default=__entcolour__, help='Colour of the Entropy line')
 
 # # Validate graph specific arguments - Set the defaults here
 class ArgValidationEx(Exception): pass
@@ -64,32 +69,62 @@ def args_validation(args):
     backend = matplotlib.get_backend()
     if not backend == 'TkAgg':
         log.warning('{} matplotlib backend in use. This graph generation was tested with "TkAgg", bugs may lie ahead...'.format(backend))
-    else:
-        log.debug('Matplotlib backend: {}'.format(backend))
 
     # # Test to see if we should use defaults
     if args.graphtype == 'all':
-        args.ibytes = __ibytes__
         args.chunks = __chunks__ 
+        args.ibytes = __ibytes__
+        args.entcolour = __entcolour__
 
     # # Test ibytes is jalid json
-    if args.ibytes == None:
-        args.ibytes = json.loads('{}')
-    else:
-        try:
-            args.ibytes = json.loads(args.ibytes)
-        except JSONDecodeError as e:
-            raise ArgValidationEx('Error decoding json --ibytes value. {}: "{}"'.format(e, args.ibytes))
+    try:
+        args.ibytes = json.loads(args.ibytes)
+    except JSONDecodeError as e:
+        raise ArgValidationEx('Error decoding json --ibytes value. {}: "{}"'.format(e, args.ibytes))
+    except TypeError as e:
+        args.ibytes = False
 
     # # Test to see if ibytes are sane
-    for name, bytelist in args.ibytes.items():
+    if args.ibytes:
 
-        if not (type(name) == str or type(bytelist) == list) or not len(bytelist) > 0:
-            raise ArgValidationEx('Error validating --ibytes. Name is not a string or bytes not list: {} = {}'.format(name, bytelist))
+        ibytes_list = []
 
-        for b in bytelist:
-            if not type(b) == int:
-                raise ArgValidationEx('Error validating --ibytes. Item in list not an int: {} = {}'.format(name, b))
+        for ib in args.ibytes:
+
+            ibyte = {}
+
+            if not type(ib) == dict:
+                raise ArgValidationEx('Error validating --ibytes - "{}" value is not a dict: "{}"'.format(name, bytelist))
+            elif type(ib) == dict:
+                if not ('name' in ib.keys() and 'bytes' in ib.keys()):
+                    raise ArgValidationEx('Error validating --ibytes - name or bytes field not present: {}'.format(ib))
+
+                ibyte['name'] = ib['name']
+                ibyte['bytes'] = []
+
+                if not len(ib['bytes']) > 0:
+                    raise ArgValidationEx('Error validating --ibytes - Missing "bytes" values: {}'.format(ib))
+
+                for b in ib['bytes']:
+                    if not type(b) == int:
+                        raise ArgValidationEx('Error validating --ibytes - "{}" is not an int: "{}"'.format(name, b))
+                    else:
+                        ibyte['bytes'].append(b)
+
+                # # Get/set the colour if it exists
+                if not 'colour' in ib.keys():
+                    log.warning('No colour defined for --ibytes byte ranges')
+                    ibyte['colour'] = matplotlib.colors.to_rgba(hash_colour(ib['name']))
+                else:
+                    ibyte['colour'] = matplotlib.colors.to_rgba(ib['colour'])
+
+            else:
+                raise ArgValidationEx('Error validating --ibytes: {}'.format(ib))
+
+            ibytes_list.append(ibyte)
+
+        args.ibytes = ibytes_list
+
 
 # # Generate the graph
 def generate(abs_fpath, fname, blob, chunks=__chunks__, ibytes=__ibytes_dict__, **kwargs):
@@ -107,12 +142,11 @@ def generate(abs_fpath, fname, blob, chunks=__chunks__, ibytes=__ibytes_dict__, 
             nr_chunksize = fs / chunks
 
         log.debug('Filesize: {}, Chunksize (rounded): {}, Chunksize: {}, Chunks: {}'.format(fs, chunksize, nr_chunksize, chunks))
-
-        # # Create byte occurrence dict if required
-        if len(ibytes) > 0:
-            byte_ranges = {key: [] for key in ibytes.keys()}
-
+        log.debug('Using ibytes: {}'.format(ibytes))
         log.debug('Producing shannon ent with chunksize {}'.format(chunksize))
+
+        for index, _ in enumerate(ibytes):
+            ibytes[index]['percentages'] = []
 
         shannon_samples = []
         prev_ent = 0
@@ -126,15 +160,15 @@ def generate(abs_fpath, fname, blob, chunks=__chunks__, ibytes=__ibytes_dict__, 
             shannon_samples.append(ent)
 
             # # Calculate percentages of given bytes, if provided
-            if len(ibytes) > 0:
+            if ibytes:
                 cbytes = Counter(chunk)
-                for label, b_range in ibytes.items():
 
+                for index, _ in enumerate(ibytes):
                     occurrence = 0
-                    for b in b_range:
+                    for b in ibytes[index]['bytes']:
                         occurrence += cbytes[b]
+                        ibytes[index]['percentages'].append((float(occurrence)/float(len(chunk)))*100)
 
-                    byte_ranges[label].append((float(occurrence)/float(len(chunk)))*100)
 
     log.debug('Closed: "{}"'.format(fname))
 
@@ -142,7 +176,7 @@ def generate(abs_fpath, fname, blob, chunks=__chunks__, ibytes=__ibytes_dict__, 
     fig, host = plt.subplots()
 
     log.debug('Plotting shannon samples')
-    host.plot(np.array(shannon_samples), label='Entropy', c=section_colour('Entropy'), zorder=1001, linewidth=1)
+    host.plot(np.array(shannon_samples), label='Entropy', c=hash_colour('Entropy'), zorder=1001, linewidth=1.5)
 
     host.set_ylabel('Entropy\n'.format(chunksize))
     host.set_xlabel('Raw file offset')
@@ -154,17 +188,16 @@ def generate(abs_fpath, fname, blob, chunks=__chunks__, ibytes=__ibytes_dict__, 
     zorder=1000
 
     # # Plot individual byte percentages
-    if len(ibytes) > 0:
-        log.debug('Using ibytes: {}'.format(ibytes))
+    if ibytes:
 
         axBytePc = host.twinx()
         axBytePc.set_ylabel('Occurrence of "interesting" bytes')
         axBytePc.yaxis.set_major_formatter(ticker.FuncFormatter(lambda x, pos: ('{:d}%'.format(int(x)))))
 
-        for label, percentages in byte_ranges.items():
+        for index, _ in enumerate(ibytes):
             zorder -= 1
-            c = section_colour(label)
-            axBytePc.plot(np.array(percentages), label=label, c=c, zorder=zorder, linewidth=0.7, alpha=0.75)
+            c = ibytes[index]['colour']
+            axBytePc.plot(np.array(ibytes[index]['percentages']), label=ibytes[index]['name'], c=c, zorder=zorder, linewidth=0.7, alpha=0.75)
 
         axBytePc.set_ybound(lower=-0.3, upper=101)
 
@@ -212,7 +245,7 @@ def generate(abs_fpath, fname, blob, chunks=__chunks__, ibytes=__ibytes_dict__, 
                     longest_section_name = len(section_name) if len(section_name) > longest_section_name else longest_section_name
 
                 # # Eval the space required to show the section names
-                title_gap = int(longest_section_name / 3) * '\n'
+                title_gap = int(longest_section_name / 2) * '\n'
                 
             else:
                 log.debug('Not currently customised: {}'.format(bp.type))
@@ -223,7 +256,7 @@ def generate(abs_fpath, fname, blob, chunks=__chunks__, ibytes=__ibytes_dict__, 
 
     # # Add legends + title (adjust for different options given)
     legends = []
-    if len(ibytes) > 0:
+    if ibytes:
         legends.append(host.legend(loc='upper left', bbox_to_anchor=(1.1, 1), frameon=False))
         legends.append(axBytePc.legend(loc='upper left', bbox_to_anchor=(1.1, 0.85), frameon=False))
     else:
@@ -351,20 +384,12 @@ def safe_section_name(s_name, index):
         return s_name
 
 # # Assign a colour to the section name. Static between samples
-def section_colour(text, multi=False):
+def hash_colour(text):
 
     name_colour = int('F'+hashlib.md5(text.encode('utf-8')).hexdigest()[:4], base=16)
     np.random.seed(int(name_colour))
-    colour_main = np.random.rand(3,)
+    return matplotlib.colors.to_rgba(np.random.rand(3,))
 
-    # Sometimes we need more than one colour
-    if multi:
-        np.random.seed(int(name_colour)-255)
-        colour_second = np.random.rand(3,)
-        return colour_main, colour_second
-
-    else:
-        return colour_main
 
 # # Calculate entropy given a list
 def shannon_ent(labels, base=256):
