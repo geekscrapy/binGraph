@@ -39,7 +39,7 @@ def args_setup(arg_parser):
     arg_parser.add_argument('--width', type=int, default=__width__, metavar=__width__, help='Sample width')
     arg_parser.add_argument('--no_log', action='store_false', default=__g_log__, help='Do _not_ apply a log scale to occurance axis')
     arg_parser.add_argument('--no_order', action='store_true', default=__no_order__, help='Remove the ordered histogram - It shows overall distribution when on')
-    arg_parser.add_argument('--colours', type=str, nargs=2, default=__colours__, metavar="#ff01d5", help='Colours for the graph. First is the ordered graph')
+    arg_parser.add_argument('--colours', type=str, nargs=2, default=__colours__, metavar="#ff01d5", help='Colours for the graph. First value is the ordered graph')
 
 # Validate graph specific arguments
 class ArgValidationEx(Exception): pass

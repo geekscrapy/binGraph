@@ -46,28 +46,34 @@ optional arguments:
 ```
 
 ## Binary Entropy - ent
-Shows the entropy over certain sized chunked samples of the binary file. The sample size is scaled to the ```--chunks``` option (defaults to 750). More chunks give mode detail, but can get messy! The ```--ibytes``` option provides a method to highlight certain bytes and their occurence within that sample set. This often has direct reflection to why entropy goes up or down - lots of 0's? Entropy goes down, and 0's go up!
-```--ibytes``` must be of json format, of an array of objects. Objects must contain a ```name```, and ```bytes``` values. ```bytes``` is an array of integers which are interpretted as hex bytes. The optional ```colour``` value can be a matplotlib colour (e.g. r, b or hex with/or without alpha)
+Shows the entropy over certain sized chunked samples of the binary file. The sample size is scaled to the ```--chunks``` option (defaults to 750). More chunks give mode detail, but can get messy! The ```--ibytes``` option provides a method to highlight certain bytes and their occurence within that sample set. This often has direct reflection to why entropy goes up or down - lots of 0's? Entropy line goes down, and 0's line go up!
+```--ibytes``` must be an list of json dictionaries. Dictionaries must contain a ```"name"```, and ```"bytes"``` values. ```"bytes"``` is an array of integers which are interpretted as hex bytes. The optional ```"colour"``` value can be a matplotlib colour (e.g. r, b or hex with/or without alpha), or not defined (in this case a seeded value is used)
 
 ![Binary entropy graph](example-ent.png "Binary entropy graph - from PE executable")
 !MALWARE! Sample from: https://cape[.]contextis[.]com/file/CAPE/9472/ad5a729e7c4047c946601e5533b1dfa3983a0d84da61b743dda1ca3b1c956ec5/
 ```
 $ python binGraph.py ent --help
-usage: binGraph.py ent [-h] [-c 750] [--ibytes ] [--entcolour #cf3da2ff]
+usage: binGraph.py ent [-h] [-c 750] [--ibytes [{ "name":"0s", "bytes":[0] },
+                       { "name":"Exploit", "bytes":[44, 144], "colour":"r" }]]
+                       [--entcolour #cf3da2ff]
 
 optional arguments:
   -h, --help            show this help message and exit
   -c 750, --chunks 750  Defines how many chunks the binary is split into (and
                         therefore the amount of bytes submitted for shannon
                         sampling per time). Higher number gives more detail
-  --ibytes []           JSON of bytes to include in the graph. To disable this
-                        option, either set the flag without an argument, or
-                        set value to "[]". An example of expected values: "[
-                        {"name":"0's", "colour": "#ef0ef0", "bytes": [0]},
-                        {"name":"Exploit", "bytes": [44,144]} ]" . The easiest
-                        way to construct these values is to create a
-                        dictionary and convert it using
-                        'print(json.loads(dict))'
+  --ibytes [ { "name":"0s", "bytes":[0] }, { "name":"Exploit", "bytes":[44, 144], "colour":"r" } ]
+                        Bytes occurances to add to the graph - used to add
+                        extra visability into the type of bytes included in
+                        the binary. To disable this option, set the flag
+                        without an argument. The "name" value is the name of
+                        the bytes for the legend, the "bytes" value is the
+                        bytes to count the percentage of per section, the
+                        "colour" value maybe a matplotlib colour ( r,g,b
+                        etc.), a hex with or without an alpha value, or not
+                        defined (a seeded colour is chosen). The easiest way
+                        to construct these values is to create a dictionary
+                        and convert it using 'print(json.loads(dict))'
   --entcolour #cf3da2ff
                         Colour of the Entropy line
 ```
@@ -92,7 +98,7 @@ optional arguments:
   --no_order            Remove the ordered histogram - It shows overall
                         distribution when on
   --colours #ff01d5 #ff01d5
-                        Colours for the graph. First is the ordered graph
+                        Colours for the graph. First value is the ordered graph
 ```
 
 # To do:

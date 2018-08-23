@@ -28,6 +28,7 @@ from collections import Counter
 import os
 import json
 import sys
+import re
 
 # # Try lief first, it reads more formats
 try:
@@ -51,14 +52,17 @@ log = logging.getLogger('graph.ent')
 
 # # Graph defaults
 __chunks__ = 750
-__ibytes__= '[ {"name":"0\'s", "colour": "#15ff04", "bytes": [0]}, {"name":"Printable ASCII", "colour":"b", "bytes": [32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,71,72,73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88,89,90,91,92,93,94,95,96,97,98,99,100,101,102,103,104,105,106,107,108,109,110,111,112,113,114,115,116,117,118,119,120,121,122,123,124,125,126]}, {"name":"Exploit", "bytes": [44,144], "colour":"#ff2b01"} ]'
+__ibytes__= '[ {"name":"0\'s", "colour": "#15ff04", "bytes": [0]}, {"name":"Exploit", "bytes": [44,144], "colour":"#ff2b01"}, {"name":"Printable ASCII", "colour":"b", "bytes": [32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,71,72,73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88,89,90,91,92,93,94,95,96,97,98,99,100,101,102,103,104,105,106,107,108,109,110,111,112,113,114,115,116,117,118,119,120,121,122,123,124,125,126]} ]'
 __ibytes_dict__ = json.loads(__ibytes__)
 __entcolour__ = '#ff01d5'
 
 # # Set args in args parse - the given parser is a sub parser
 def args_setup(arg_parser):
     arg_parser.add_argument('-c','--chunks', type=int, default=__chunks__, metavar='750', help='Defines how many chunks the binary is split into (and therefore the amount of bytes submitted for shannon sampling per time). Higher number gives more detail')
-    arg_parser.add_argument('--ibytes', type=str, nargs='?', metavar='', default=__ibytes__, help='JSON of bytes to include in the graph. To disable this option, either set the flag without an argument, or set value to "[]". An example of expected values: \"[ {"name":"0\'s", "colour": "#ef0ef0", "bytes": [0]}, {"name":"Exploit", "bytes": [44,144]} ]" . The easiest way to construct these values is to create a dictionary and convert it using \'print(json.loads(dict))\'')
+    arg_parser.add_argument('--ibytes', type=str, nargs='?', metavar=' { "name":"0s", "bytes":[0] }, { "name":"Exploit", "bytes":[44, 144], "colour":"r" } ', default=__ibytes__, help='''
+                    Bytes occurances to add to the graph - used to add extra visability into the type of bytes included in the binary. To disable this option, set the flag without an argument.
+                    The "name" value is the name of the bytes for the legend, the "bytes" value is the bytes to count the percentage of per section, the "colour" value maybe a matplotlib colour
+                    ( r,g,b etc.), a hex with or without an alpha value, or not defined (a seeded colour is chosen). The easiest way to construct these values is to create a dictionary and convert it using \'print(json.loads(dict))\'''')
     arg_parser.add_argument('--entcolour', type=str, metavar='#cf3da2ff', default=__entcolour__, help='Colour of the Entropy line')
 
 # # Validate graph specific arguments - Set the defaults here
@@ -113,7 +117,7 @@ def args_validation(args):
 
                 # # Get/set the colour if it exists
                 if not 'colour' in ib.keys():
-                    log.warning('No colour defined for --ibytes byte ranges')
+                    log.warning('No colour defined for --ibytes byte range: {} {}'.format(ib['name'], ib['bytes']))
                     ibyte['colour'] = matplotlib.colors.to_rgba(hash_colour(ib['name']))
                 else:
                     ibyte['colour'] = matplotlib.colors.to_rgba(ib['colour'])
