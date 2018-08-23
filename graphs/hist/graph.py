@@ -13,6 +13,7 @@ no_order bool:  Remove the ordered histogram - it shows overall distribution
 from __future__ import division
 
 import os
+import sys
 import numpy as np
 import matplotlib
 
@@ -56,8 +57,6 @@ def args_validation(args):
         args.no_log = __g_log__
         args.no_order = __no_order__
         args.colours = __colours__
-
-    print(dir(matplotlib.colors))
 
     try:
         args.colours[0] = matplotlib.colors.to_rgba(args.colours[0])
