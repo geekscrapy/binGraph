@@ -26,7 +26,7 @@ optional arguments:
                         only argument specified.
   -r, --recurse         If --file is a directory, add files recursively
   -                     *** Required if --file or -f is the only argument
-                        given before a graph type is provided (it's greedy!).
+                        given before a graph type is provided (it\'s greedy!).
                         E.g. "binGraph.py --file mal.exe - bin_ent"
   -p PREFIX, --prefix PREFIX
                         Saved graph output filename (without extension)
@@ -40,7 +40,7 @@ optional arguments:
   --figsize # #         Figure width and height in inches
   --dpi 100             Figure dpi
   --blob                Do not intelligently parse certain file types. Treat
-                        all files as a binary blob. E.g. don't add PE entry
+                        all files as a binary blob. E.g. don\'t add PE entry
                         point or section splitter to the graph
   -v, --verbose         Print debug information to stderr
 ```
@@ -105,3 +105,4 @@ optional arguments:
 
 - Read from stdin for use with other tools such as Didier Stevens's zipdump.py - Kaitai allows binary array input
   - ent graph (and others) to use Kaitai as the parser instead of third party libs - bit more extensible
+- Add extra graph types - Hilbert curve

@@ -171,7 +171,8 @@ def generate(abs_fpath, fname, blob, chunks=__chunks__, ibytes=__ibytes_dict__, 
                     occurrence = 0
                     for b in ibytes[index]['bytes']:
                         occurrence += cbytes[b]
-                        ibytes[index]['percentages'].append((float(occurrence)/float(len(chunk)))*100)
+
+                    ibytes[index]['percentages'].append((float(occurrence)/float(len(chunk)))*100)
 
 
     log.debug('Closed: "{}"'.format(fname))
