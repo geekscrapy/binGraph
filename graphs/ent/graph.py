@@ -213,10 +213,9 @@ def generate(abs_fpath, fname, blob, chunks=__chunks__, ibytes=__ibytes_dict__, 
 
     # # Filetype specific additions
     if not blob:
-
         bp = bin_proxy(abs_fpath)
 
-        if None in (bp.bin, bp.type):
+        if bp.type is None:
             log.warning('Failed to parse binary format, parsing like --blob')
 
         else:
@@ -251,6 +250,75 @@ def generate(abs_fpath, fname, blob, chunks=__chunks__, ibytes=__ibytes_dict__, 
 
                 # # Eval the space required to show the section names
                 title_gap = int(longest_section_name / 2) * '\n'
+
+            elif bp.type == 'ELF':
+
+                log.debug('Adding ELF customisations')
+
+                # # Entrypoint (EP) pointer and vline
+                phy_ep_pointer = bp.get_physical_from_elf_v(bp.get_elf_ep()) / nr_chunksize
+                log.debug('{}: {}'.format('Entrypoint', hex(bp.get_elf_ep())))
+
+                host.axvline(x=phy_ep_pointer, linestyle=':', c='r', zorder=zorder-1)
+                host.text(x=phy_ep_pointer, y=1.07, s='EP', rotation=45, va='bottom', ha='left')
+
+                longest_section_name = 0
+
+                # # Section vlines
+                printed_section_offset = -100000
+                for index, section in bp.sections():
+                    zorder -= 1
+                    section_name = safe_section_name(section.name, index)
+                    section_offset = section.offset / nr_chunksize
+
+                    log.debug('{}: {}'.format(section_name, hex(section.offset)))
+                    
+                    if section.name.startswith( ('.fini', '.gnu', '.note.') ):
+                        continue
+                                        
+                    if section_offset - printed_section_offset < 15:
+                        continue
+						
+                    printed_section_offset = section_offset  
+                    host.axvline(x=section_offset, linestyle='--', zorder=zorder)
+                    host.text(x=section_offset, y=1.07, s=section_name, rotation=45, va='bottom', ha='left')
+
+                    # # Get longest section name
+                    longest_section_name = len(section_name) if len(section_name) > longest_section_name else longest_section_name
+
+                # # Eval the space required to show the section names
+                title_gap = int(longest_section_name / 2) * '\n'
+      
+            elif bp.type == '_unk_exec':
+
+                log.debug('Adding generic executable customisations')
+
+                longest_section_name = 0
+
+                # # Section vlines
+                printed_section_offset = -100000
+                try:
+					for index, section in bp.sections():
+						zorder -= 1
+						section_name = safe_section_name(section.name, index)
+						section_offset = section.offset / nr_chunksize
+
+						log.debug('{}: {}'.format(section_name, hex(section.offset)))
+											
+						if section_offset - printed_section_offset < 15:
+							continue
+							
+						printed_section_offset = section_offset  
+						host.axvline(x=section_offset, linestyle='--', zorder=zorder)
+						host.text(x=section_offset, y=1.07, s=section_name, rotation=45, va='bottom', ha='left')
+
+						# # Get longest section name
+						longest_section_name = len(section_name) if len(section_name) > longest_section_name else longest_section_name
+                except:
+					log.debug('Generic section extraction failed')
+                # # Eval the space required to show the section names
+                title_gap = int(longest_section_name / 2) * '\n'
+                
                 
             else:
                 log.debug('Not currently customised: {}'.format(bp.type))
@@ -283,6 +351,7 @@ class bin_proxy(object):
     def __init__(self, abs_fpath, lib=None):
         super(bin_proxy, self).__init__()
         self.abs_fpath = abs_fpath
+        self.bin, self.type, self.lib = None, None, None
 
         if lib:
             self.lib = lib
@@ -294,7 +363,7 @@ class bin_proxy(object):
                 self.lib = 'pefile'
             else:
                 # # We dont have a parser
-                return None, None
+		return None
 
         self.bin, self.type = None, None
         self.__parse_bin()
@@ -311,8 +380,14 @@ class bin_proxy(object):
                 if type(self.bin) == lief.PE.Binary:
                     self.type = 'PE'
                     log.debug('Parsed with lief as: {}'.format(self.type))
+                elif type(self.bin) == lief.ELF.Binary:
+                    self.type = 'ELF'
+                    log.debug('Parsed with lief as: {}'.format(self.type))
+                elif self.bin is None:
+					self.bin = None
+					log.debug('Parsing with lief resulted in an unrecognized format')
                 else:
-                    self.bin = None
+                    self.type = '_unk_exec'
                     log.debug('File is a currently unsupported format'.format(self.type))
 
             except lief.bad_file as e:
@@ -329,18 +404,30 @@ class bin_proxy(object):
                 log.warning('Failed to parse with pefile: {}'.format(e))
 
     def get_virtual_ep(self):
-
         if self.lib == 'lief':
             return self.bin.optional_header.addressof_entrypoint
         elif self.lib == 'pefile':
             return self.bin.OPTIONAL_HEADER.AddressOfEntryPoint
 
     def get_physical_from_rva(self, rva):
-
         if self.lib == 'lief':
             return self.bin.rva_to_offset(rva)
         elif self.lib == 'pefile':
             return self.bin.get_physical_by_rva(rva)
+
+    def get_physical_from_elf_v(self, rva):
+		if self.lib == 'lief':
+			try:
+				return self.bin.virtual_address_to_offset(rva)
+			except:
+				return rva
+
+    def get_elf_ep(self):
+        if self.lib == 'lief':
+			try:
+				return self.bin.header.entrypoint
+			except:
+				return None
 
     def sections(self):
 
@@ -385,8 +472,8 @@ def get_chunk(fh, chunksize=8192):
 # # Some samples may have a corrupt section name (e.g. 206c0533ce9bf83ecdf904bec2f3532d)
 def safe_section_name(s_name, index):
         if s_name == '' or s_name == None:
-            s_name = 'sect_{:d}'.format(str(index))
-        return s_name
+            s_name = 'sect_{:d}'.format(index)
+        return s_name[0:20] #long sections names upset matplotlib
 
 # # Assign a colour to the section name. Static between samples
 def hash_colour(text):
