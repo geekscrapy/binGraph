@@ -153,14 +153,10 @@ def generate(abs_fpath, fname, blob, chunks=__chunks__, ibytes=__ibytes_dict__, 
             ibytes[index]['percentages'] = []
 
         shannon_samples = []
-        prev_ent = 0
         for chunk in get_chunk(fh, chunksize=chunksize):
 
             # # Calculate ent
-            real_ent = shannon_ent(chunk)
-            ent = statistics.median([real_ent, prev_ent])
-            prev_ent = real_ent
-            ent = real_ent
+            ent = shannon_ent(chunk)
             shannon_samples.append(ent)
 
             # # Calculate percentages of given bytes, if provided

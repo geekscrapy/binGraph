@@ -105,7 +105,6 @@ def get_graph_modules():
             else:
                 full_package_name = '{}.graph'.format(os.path.basename(graph), package_name)
 
-
             if not (full_package_name in sys.modules):
 
                 if sys.version_info[0] < 3:
@@ -113,7 +112,9 @@ def get_graph_modules():
                 else:
                     module = importer.find_module(full_package_name)
 
-                module = module.load_module(full_package_name)
+                if module:
+
+                    module = module.load_module(full_package_name)
 
                 modules[os.path.basename(graph)] = module
 
