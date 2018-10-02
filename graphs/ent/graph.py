@@ -308,8 +308,7 @@ class bin_proxy(object):
                     self.type = 'PE'
                     log.debug('Parsed with lief as: {}'.format(self.type))
                 else:
-                    self.bin = None
-                    log.debug('File is a currently unsupported format'.format(self.type))
+                    log.debug('File is a currently unsupported format: {}'.format(self.type))
 
             except lief.bad_file as e:
                 log.warning('Failed to parse with lief: {}'.format(e))
