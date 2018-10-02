@@ -1,6 +1,8 @@
 # binGraph.py
 A tool to graph files for quick visual analysis of binary files
 
+Feel free to use this project (in its entirety) in other tools, and please provide attribution back to the project.
+
 Creates matplotlib graphs to represent different aspects of a file (usually malware). Focusing on entropy.
 
 Given a file(s) (with ```--file```) different graphs can be generated (e.g. ```ent```, ```hist``` etc.) or ```all``` can be used to generate all the graphs available.
