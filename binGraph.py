@@ -13,7 +13,7 @@ import datetime
 __version__ = {}
 __version__['codename'] = 'Iron Airedale' # http://www.codenamegenerator.com/?prefix=metal&dictionary=dogs
 __version__['digit'] = 3.0
-__version__['rundate'] = datetime.datetime.now().isoformat()
+__version__['run_date'] = datetime.datetime.now().isoformat()
 
 
 # ## Global graphing default values
@@ -212,14 +212,14 @@ for index, abs_fpath in enumerate(__files__):
         args_dict['cleaned_fname'] = cleaned_fname
 
         # # Generate and output the graph
-        plt, save_kwargs = module.generate(**args_dict)
+        plt, save_kwargs, json_data = module.generate(**args_dict)
 
         fig = plt.gcf()
         fig.set_size_inches(*args.figsize, forward=True)
 
-        # # Add watermark
-        ax = plt.gca()
-        ax.text(-0.03, -0.15, 'github.com/geekscrapy/binGraph', ha='left', va='top', family='monospace', transform=ax.transAxes)
+        # # Add watermark - need to work out a way to not let this overlap
+        # ax = plt.gca()
+        # ax.text(-0.03, -0.15, 'github.com/geekscrapy/binGraph', ha='left', va='top', family='monospace', transform=ax.transAxes)
 
         plt.tight_layout()
 
@@ -230,6 +230,7 @@ for index, abs_fpath in enumerate(__files__):
             log.info('Saving as json file')
 
             output = {}
+            output['info'] = json_data
 
             buf = io.BytesIO()
             plt.savefig(buf,format=args.format, dpi=args.dpi, forward=True, **save_kwargs)
