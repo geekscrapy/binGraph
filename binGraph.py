@@ -12,7 +12,7 @@ import datetime
 
 __version__ = {}
 __version__['codename'] = 'Iron Airedale' # http://www.codenamegenerator.com/?prefix=metal&dictionary=dogs
-__version__['digit'] = 3.0
+__version__['digit'] = 3.1
 __version__['run_date'] = datetime.datetime.now().isoformat()
 
 
