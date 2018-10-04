@@ -140,6 +140,7 @@ parser.add_argument('-', dest='__dummy', action='store_true', help='*** Required
 parser.add_argument('--prefix', type=str, metavar='', help='Add this prefix to the saved filenames') 
 parser.add_argument('--out', type=str, dest='save_dir', default=os.getcwd(), metavar='/data/graphs/', help='Where to save the graph files') 
 parser.add_argument('--json', action='store_true', default=__json__, help='Ouput graphs as json with graph images encoded as Base64')
+parser.add_argument('--graphtitle', type=str, default=None, help='Given title for graphs') 
 parser.add_argument('--showplt', action='store_true', default=__showplt__, help='Show plot interactively (disables saving to file)')
 parser.add_argument('--format', type=str, default=__figformat__, choices=['png', 'pdf', 'ps', 'eps','svg'], required=False, metavar='png', help='Graph output format. All matplotlib outputs are supported: e.g. png, pdf, ps, eps, svg')
 parser.add_argument('--figsize', type=int, nargs=2, default=__figsize__, metavar='#', help='Figure width and height in inches')

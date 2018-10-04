@@ -121,7 +121,12 @@ def generate(abs_fpath, fname, no_zero=__no_zero__, width=__width__, g_log=__g_l
 
     plt.legend(loc='upper center', ncol=3, bbox_to_anchor=(0.5, 1.07), framealpha=1)
 
-    plt.title('Byte histogram: {}\n'.format(fname))
+    if kwargs['graphtitle']:
+        graphtitle = kwargs['graphtitle']
+    else:
+        graphtitle = fname
+
+    plt.title('Byte histogram: {}\n'.format(graphtitle))
 
     return plt, {}, {}
 
