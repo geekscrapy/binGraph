@@ -314,7 +314,15 @@ def generate(abs_fpath, fname, blob, chunks=__chunks__, ibytes=__ibytes_dict__, 
         host.set_title('Binary entropy (sampled over {chunksize} byte chunks): {graphtitle}{title_gap}'.format(chunksize=chunksize, graphtitle=graphtitle, title_gap=title_gap))
 
     # # Return the plt, kwargs for the plt.savefig function, and additional information for json data
-    return plt, {'bbox_inches':'tight', 'bbox_extra_artists':tuple(legends)}, {}
+    json_data = {
+                    'title':graphtitle,
+                    'info': {
+                        'Mean': statistics.mean(shannon_samples),
+                        'Standard deviation': statistics.stdev(shannon_samples)
+                    }
+                }
+
+    return plt, {'bbox_inches':'tight', 'bbox_extra_artists':tuple(legends)}, json_data
 
 
 # ### Helper functions
