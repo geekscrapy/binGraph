@@ -1,3 +1,4 @@
+#encoding: utf-8
 #!/usr/bin/env python
 
 import sys
@@ -23,6 +24,13 @@ __figdpi__ = 100        # DPI of figure
 __json__ = False     # Show the plot interactively
 __showplt__ = False     # Show the plot interactively
 __blob__ = False        # Treat all files as binary blobs. Disable intelligently parsing of file format specific features.
+
+
+# ## Default logging
+#logging.getLogger("binGraph").setLevel(logging.INFO)
+# # Lower the matplotlib logger
+logging.getLogger('matplotlib').setLevel(logging.CRITICAL)
+log = logging.getLogger('binGraph')
 
 # ### Helper functions
 
@@ -120,8 +128,16 @@ def get_graph_modules():
 
     return modules
 
+# ## Graphs
+# # Try and import the graphs
+try:
+    graphs = get_graph_modules()
+except Exception as e:
+    log.critical('Failed to import graph: {}'.format(e))
+    exit(0)
 
-def generate_graphs(files, args_dict):
+# # Main routine here
+def generate_graphs(args_dict):
     """
     This will allow to users use it as library
         args_dict = {
@@ -144,15 +160,26 @@ def generate_graphs(files, args_dict):
                 {'colour': (1.0, 0.16862745098039217, 0.00392156862745098, 1.0), 'bytes': [44, 144], 'name': u'Exploit'}, 
                 {'colour': (0.0, 0.0, 1.0, 1), 'bytes': [32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126], 'name': u'Printable ASCII'}
             ], 
-            'figsize': (12, 4), 'blob': False}
+            'figsize': (12, 4), 'blob': False
+        }
     """
+
+    # # Detect if all graphs are being requested + set required defaults
+    __graphtypes__ = []
+    if args_dict["graphtype"] == 'all':
+        __graphtypes__ = graphs
+    else:
+        __graphtypes__ = { args_dict["graphtype"]: graphs[args_dict["graphtype"]] }
+
+    log.debug('Generating graphs: {}'.format(', '.join(__graphtypes__.keys()) ))
+
     # # Iterate over all given files
-    for index, abs_fpath in enumerate(files):
+    for index, abs_fpath in enumerate(args_dict["files"]):
 
         log.info('+++ Processing: "{}"'.format(abs_fpath))
         
         for module_name, module in __graphtypes__.items():
-            abs_save_fpath, fname, cleaned_fname = gen_names(args_dict["format"], abs_fpath, args_dict["save_dir"], save_prefix=args_dict["prefix"], graphtype=module_name, findex=(index if len(files)>1 else None))
+            abs_save_fpath, fname, cleaned_fname = gen_names(args_dict["format"], abs_fpath, args_dict["save_dir"], save_prefix=args_dict["prefix"], graphtype=module_name, findex=(index if len(args_dict["files"])>1 else None))
 
             args_dict['abs_fpath'] = abs_fpath # Define the current file we are acting on
             args_dict['fname'] = fname
@@ -206,20 +233,12 @@ def generate_graphs(files, args_dict):
 # ### Main
 if __name__ == '__main__':
     logging.basicConfig(stream=sys.stderr, format='%(name)s | %(levelname)s | %(message)s')
-    log = logging.getLogger('binGraph')
-
-    # # Try and import the graphs
-    try:
-        graphs = get_graph_modules()
-    except Exception as e:
-        log.critical('Failed to import graph: {}'.format(e))
-        exit(0)
-
+    
     # # Import the defaults
     parser = argparse.ArgumentParser()
     parser.add_argument('-f', '--file', type=str, required=True, nargs='+', metavar='malware.exe', help='Give me a graph of this file. See - if this is the only argument specified.')
     parser.add_argument('-r', '--recurse', action='store_true', help='If --file is a directory, add files recursively')
-    parser.add_argument('-', dest='__dummy', action='store_true', help='*** Required if --file or -f is the only argument given before a graph type is provided (it\'s greedy!). E.g. "binGraph.py --file mal.exe - bin_ent"')
+    parser.add_argument('-', dest='__dummy', action='store_true', help='*** Required if --file or -f is the only argument given before a graph type is provided (it\'s greedy!). E.g. "binGraph.py --file mal.exe - ent"')
     parser.add_argument('--prefix', type=str, metavar='', help='Add this prefix to the saved filenames') 
     parser.add_argument('--out', type=str, dest='save_dir', default=os.getcwd(), metavar='/data/graphs/', help='Where to save the graph files') 
     parser.add_argument('--json', action='store_true', default=__json__, help='Ouput graphs as json with graph images encoded as Base64')
@@ -247,10 +266,6 @@ if __name__ == '__main__':
     if args.verbose:
         logging.getLogger().setLevel(logging.DEBUG)
         logging.getLogger('matplotlib').setLevel(logging.WARNING)
-    else:
-        logging.getLogger().setLevel(logging.INFO)
-        # # Lower the matplotlib logger
-        logging.getLogger('matplotlib').setLevel(logging.CRITICAL)
 
     log.debug('Found the following graph types: {}'.format(', '.join(graphs.keys())))
 
@@ -260,12 +275,6 @@ if __name__ == '__main__':
     __files__ = find_files(args.file, args.recurse)
     # # Adjust args to retain the list of files
     args.files = __files__
-
-    # # Is the save_dir actually a dirctory?
-    args.save_dir = os.path.abspath(args.save_dir)
-    if not os.path.isdir(args.save_dir):
-        log.critical('--save_dir is not a directory: {}'.format(args.save_dir))
-        exit(1)
 
     # # Detect if all graphs are being requested + set required defaults
     __graphtypes__ = []
@@ -278,7 +287,11 @@ if __name__ == '__main__':
     for name, module in __graphtypes__.items():
         module.args_validation(args)
 
-    args_dict = args.__dict__
-    print(args_dict)
-    log.debug('Generating graphs: {}'.format(', '.join(__graphtypes__.keys()) ))
-    generate_graphs(__files__, args_dict)
+    # # Is the save_dir actually a dirctory?
+    args.save_dir = os.path.abspath(args.save_dir)
+    if not os.path.isdir(args.save_dir):
+        log.critical('--save_dir is not a directory: {}'.format(args.save_dir))
+        exit(1)
+
+    args_dict = args.__dict__    
+    generate_graphs(args_dict)
