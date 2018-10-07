@@ -18,7 +18,7 @@ import os
 import sys
 import numpy as np
 import matplotlib
-
+matplotlib.use('Agg')
 import matplotlib.ticker as ticker
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator

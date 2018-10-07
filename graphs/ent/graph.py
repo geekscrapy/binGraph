@@ -19,6 +19,7 @@ from __future__ import division
 
 # # Import graph specific libs
 import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 from matplotlib.ticker import MaxNLocator
