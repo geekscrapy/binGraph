@@ -127,7 +127,7 @@ def get_graph_modules():
 
     return modules
 
-# ## Graphs
+# ## Graphs
 # # Try and import the graphs
 try:
     graphs = get_graph_modules()
@@ -135,7 +135,6 @@ except Exception as e:
     log.critical('Failed to import graph: {}'.format(e))
     exit(0)
 
-# # Main routine here
 # # Main routine here
 def generate_graphs(args_dict):
     """
@@ -173,7 +172,7 @@ def generate_graphs(args_dict):
     log.debug('Generating graphs: {}'.format(', '.join(__graphtypes__.keys()) ))
     # # Iterate over all given files
     for index, abs_fpath in enumerate(args_dict["files"]):
-        log.info('+++ Processing: "{}"'.format(abs_fpath))
+        log.info('+ Processing: "{}"'.format(abs_fpath))
         
         for module_name, module in __graphtypes__.items():
             abs_save_fpath, fname, cleaned_fname = gen_names(args_dict["format"], abs_fpath, args_dict["save_dir"], save_prefix=args_dict["prefix"], graphtype=module_name, findex=(index if len(args_dict["files"])>1 else None))
@@ -221,7 +220,7 @@ def generate_graphs(args_dict):
             plt.clf()
             plt.cla()
             plt.close()
-            log.info('+++ Complete: "{}"'.format(abs_fpath))
+            log.info('+ Complete: "{}"'.format(abs_fpath))
 
 if __name__ == '__main__':
     # ### Main
