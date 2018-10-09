@@ -23,6 +23,7 @@ import matplotlib.ticker as ticker
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator
 from collections import Counter
+import statistics
 
 import logging
 log = logging.getLogger('graph.hist')
@@ -121,9 +122,22 @@ def generate(abs_fpath, fname, no_zero=__no_zero__, width=__width__, g_log=__g_l
 
     plt.legend(loc='upper center', ncol=3, bbox_to_anchor=(0.5, 1.07), framealpha=1)
 
-    plt.title('Byte histogram: {}\n'.format(fname))
+    if kwargs['graphtitle']:
+        graphtitle = kwargs['graphtitle']
+    else:
+        graphtitle = fname
 
-    return plt, {}, {}
+    plt.title('Byte histogram: {}\n'.format(graphtitle))
+
+    json_data = {
+                    'title':graphtitle,
+                    'info': {
+                        'Standard deviation': statistics.stdev(ordered_row),
+                        'Variance': statistics.variance(ordered_row)
+                    }
+                }
+
+    return plt, {}, json_data
 
 
 if __name__ == '__main__':
