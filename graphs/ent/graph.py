@@ -230,6 +230,7 @@ def generate(abs_fpath, fname, blob, chunks=__chunks__, ibytes=__ibytes_dict__, 
                 host.axvline(x=phy_ep_pointer, linestyle=':', c='r', zorder=zorder-1)
                 host.text(x=phy_ep_pointer, y=1.07, s='EP', rotation=45, va='bottom', ha='left')
 
+                end_of_last_section = 0
                 longest_section_name = 0
                 # # Section vlines
                 for index, section in enumerate(parsedbin.sections):
@@ -237,14 +238,23 @@ def generate(abs_fpath, fname, blob, chunks=__chunks__, ibytes=__ibytes_dict__, 
 
                     section_name = safe_section_name(section.name, index)
                     section_offset = section.offset / nr_chunksize
+                    section_size = section.size / nr_chunksize
 
                     log.debug('{}: {}'.format(section_name, hex(section.offset)))
 
                     host.axvline(x=section_offset, linestyle='--', zorder=zorder)
                     host.text(x=section_offset, y=1.07, s=section_name, rotation=45, va='bottom', ha='left')
 
+                    # # Get end of last section
+                    if (section_offset + section_size) > end_of_last_section:
+                        end_of_last_section = section_offset + section_size
+
                     # # Get longest section name
                     longest_section_name = len(section_name) if len(section_name) > longest_section_name else longest_section_name
+
+                # # End of final section vline
+                host.axvline(x=end_of_last_section, linestyle='--', zorder=zorder)
+                host.text(x=end_of_last_section, y=1.07, s='Overlay', color='b', rotation=45, va='bottom', ha='left')
 
                 # # Eval the space required to show the section names
                 if longest_section_name <= 5:
