@@ -211,6 +211,10 @@ def generate(abs_fpath, fname, blob, chunks=__chunks__, ibytes=__ibytes_dict__, 
 
         try:
             parsedbin = lief.parse(filepath=abs_fpath)
+
+            if parsedbin is None:
+                raise lief.bad_file
+
             log.debug('Parsed with lief as: {}'.format(type(parsedbin)))
 
         except lief.bad_file as e:
