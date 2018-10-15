@@ -122,15 +122,12 @@ def generate(abs_fpath, fname, no_zero=__no_zero__, width=__width__, g_log=__g_l
 
     plt.legend(loc='upper center', ncol=3, bbox_to_anchor=(0.5, 1.07), framealpha=1)
 
-    if kwargs['graphtitle']:
-        graphtitle = kwargs['graphtitle']
-    else:
-        graphtitle = fname
+    graphtitle = kwargs.get('graphtitle', fname)
 
     plt.title('Byte histogram: {}\n'.format(graphtitle))
 
     json_data = {
-                    'title':graphtitle,
+                    'title': graphtitle,
                     'info': {
                         'Standard deviation': statistics.stdev(ordered_row),
                         'Variance': statistics.variance(ordered_row)
