@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 """
 Byte histogram over all file
 -------------------------------------------
@@ -16,11 +18,12 @@ import os
 import sys
 import numpy as np
 import matplotlib
-
+matplotlib.use('Agg')
 import matplotlib.ticker as ticker
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator
 from collections import Counter
+import statistics
 
 import logging
 log = logging.getLogger('graph.hist')
@@ -119,10 +122,19 @@ def generate(abs_fpath, fname, no_zero=__no_zero__, width=__width__, g_log=__g_l
 
     plt.legend(loc='upper center', ncol=3, bbox_to_anchor=(0.5, 1.07), framealpha=1)
 
-    plt.title('Byte histogram: {}\n'.format(fname))
+    graphtitle = kwargs.get('graphtitle', fname)
 
-    return plt, {}
+    plt.title('Byte histogram: {}\n'.format(graphtitle))
 
+    json_data = {
+                    'title': graphtitle,
+                    'info': {
+                        'Standard deviation': statistics.stdev(ordered_row),
+                        'Variance': statistics.variance(ordered_row)
+                    }
+                }
+
+    return plt, {}, json_data
 
 
 if __name__ == '__main__':
@@ -161,13 +173,10 @@ if __name__ == '__main__':
     args_dict['fname'] = os.path.basename(args.file)
     args_dict['abs_save_fpath'] = '{}.{}'.format(os.path.basename(args_dict['abs_fpath']), args.format)
 
-    plt, save_kwargs = generate(**args_dict)
+    plt, save_kwargs, json_data = generate(**args_dict)
 
     fig = plt.gcf()
     fig.set_size_inches(*args.figsize, forward=True)
-
-    ax = plt.gca()
-    ax.text(-0.03, -0.15, 'github.com/geekscrapy/binGraph', ha='left', va='top', family='monospace', transform=ax.transAxes)
 
     plt.tight_layout()
 

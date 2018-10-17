@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 """
 Entropy and byte occurrence analysis over all file
 -------------------------------------------
@@ -17,6 +19,7 @@ from __future__ import division
 
 # # Import graph specific libs
 import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 from matplotlib.ticker import MaxNLocator
@@ -30,14 +33,8 @@ import json
 import sys
 import re
 
-# # Try lief first, it reads more formats
-try:
-    import lief
-except ImportError as e1:
-    try:
-        import pefile
-    except ImportError as e2:
-        pass
+
+import lief
 
 
 # # Python 2/3 fix
@@ -153,14 +150,10 @@ def generate(abs_fpath, fname, blob, chunks=__chunks__, ibytes=__ibytes_dict__, 
             ibytes[index]['percentages'] = []
 
         shannon_samples = []
-        prev_ent = 0
         for chunk in get_chunk(fh, chunksize=chunksize):
 
             # # Calculate ent
-            real_ent = shannon_ent(chunk)
-            ent = statistics.median([real_ent, prev_ent])
-            prev_ent = real_ent
-            ent = real_ent
+            ent = shannon_ent(chunk)
             shannon_samples.append(ent)
 
             # # Calculate percentages of given bytes, if provided
@@ -212,30 +205,38 @@ def generate(abs_fpath, fname, blob, chunks=__chunks__, ibytes=__ibytes_dict__, 
     title_gap = '\n'
 
     # # Filetype specific additions
-    if not blob:
+    if blob:
+        log.warning('Parsing file as blob (as requested)')
+    else:
 
-        bp = bin_proxy(abs_fpath)
+        try:
+            parsedbin = lief.parse(filepath=abs_fpath)
 
-        if None in (bp.bin, bp.type):
-            log.warning('Failed to parse binary format, parsing like --blob')
+            if parsedbin is None:
+                raise lief.bad_file
+
+            log.debug('Parsed with lief as: {}'.format(type(parsedbin)))
+
+        except lief.bad_file as e:
+            parsedbin = None
+            log.warning('Failed to parse binary format. Not adding file specific info')
 
         else:
 
-            if bp.type == 'PE':
+            if type(parsedbin) == lief.PE.Binary:
 
                 log.debug('Adding PE customisations')
 
                 # # Entrypoint (EP) pointer and vline
-                phy_ep_pointer = bp.get_physical_from_rva(bp.get_virtual_ep()) / nr_chunksize
-                log.debug('{}: {}'.format('Entrypoint', hex(bp.get_virtual_ep())))
+                phy_ep_pointer = parsedbin.rva_to_offset(parsedbin.optional_header.addressof_entrypoint) / nr_chunksize
+                log.debug('{}: {}'.format('Entrypoint', hex(parsedbin.optional_header.addressof_entrypoint)))
 
                 host.axvline(x=phy_ep_pointer, linestyle=':', c='r', zorder=zorder-1)
                 host.text(x=phy_ep_pointer, y=1.07, s='EP', rotation=45, va='bottom', ha='left')
 
                 longest_section_name = 0
-
                 # # Section vlines
-                for index, section in bp.sections():
+                for index, section in enumerate(parsedbin.sections):
                     zorder -= 1
 
                     section_name = safe_section_name(section.name, index)
@@ -250,10 +251,50 @@ def generate(abs_fpath, fname, blob, chunks=__chunks__, ibytes=__ibytes_dict__, 
                     longest_section_name = len(section_name) if len(section_name) > longest_section_name else longest_section_name
 
                 # # Eval the space required to show the section names
-                title_gap = int(longest_section_name / 2) * '\n'
-                
+                if longest_section_name <= 5:
+                    title_gap = '\n' * 2
+                elif longest_section_name <= 9:
+                    title_gap = '\n' * 3
+                elif longest_section_name <= 15:
+                    title_gap = '\n' * 4
+
+            elif type(parsedbin) == lief.ELF.Binary:
+
+                log.debug('Adding ELF customisations')
+
+                # # Entrypoint (EP) pointer and vline
+                phy_ep_pointer = parsedbin.virtual_address_to_offset(parsedbin.header.entrypoint) / nr_chunksize
+                log.debug('{}: {}'.format('Entrypoint', hex(parsedbin.header.entrypoint)))
+
+                host.axvline(x=phy_ep_pointer, linestyle=':', c='r', zorder=zorder-1)
+                host.text(x=phy_ep_pointer, y=1.07, s='EP', rotation=45, va='bottom', ha='left')
+
+                longest_section_name = 0
+                # # Section vlines
+                for index, section in enumerate(parsedbin.sections):
+                    zorder -= 1
+
+                    section_name = safe_section_name(section.name, index)
+                    section_offset = section.offset / nr_chunksize
+
+                    log.debug('{}: {}'.format(section_name, hex(section.offset)))
+
+                    host.axvline(x=section_offset, linestyle='--', zorder=zorder)
+                    host.text(x=section_offset, y=1.07, s=section_name, rotation=45, va='bottom', ha='left')
+
+                    # # Get longest section name
+                    longest_section_name = len(section_name) if len(section_name) > longest_section_name else longest_section_name
+
+                # # Eval the space required to show the section names
+                if longest_section_name <= 5:
+                    title_gap = '\n' * 2
+                elif longest_section_name <= 9:
+                    title_gap = '\n' * 3
+                elif longest_section_name <= 15:
+                    title_gap = '\n' * 4
+
             else:
-                log.debug('Not currently customised: {}'.format(bp.type))
+                log.debug('File is a currently unsupported format - (supported by lief, not yet supported by binGraph)')
 
     # # Plot the entropy graph
     host.set_xbound(lower=-0.5, upper=len(shannon_samples)+0.5)
@@ -267,106 +308,26 @@ def generate(abs_fpath, fname, blob, chunks=__chunks__, ibytes=__ibytes_dict__, 
     else:
         legends.append(host.legend(loc='upper left', bbox_to_anchor=(1.01, 1), frameon=False))
 
-    if blob:
-        host.set_title('Binary entropy (sampled over {chunksize} byte chunks): {fname}{title_gap}'.format(chunksize=chunksize, fname=fname, title_gap=title_gap))
-    else:
-        host.set_title('Binary entropy (sampled over {chunksize} byte chunks): {fname}{title_gap}'.format(chunksize=chunksize, fname=fname, title_gap=title_gap))
+    graphtitle = kwargs.get('graphtitle', fname)
 
-    # # Return the plt and kwargs for the plt.savefig function
-    return (plt, {'bbox_inches':'tight',  'bbox_extra_artists':tuple(legends)})
+    if blob:
+        host.set_title('Binary entropy (sampled over {chunksize} byte chunks): {graphtitle}{title_gap}'.format(chunksize=chunksize, graphtitle=graphtitle, title_gap=title_gap))
+    else:
+        host.set_title('Binary entropy (sampled over {chunksize} byte chunks): {graphtitle}{title_gap}'.format(chunksize=chunksize, graphtitle=graphtitle, title_gap=title_gap))
+
+    # # Return the plt, kwargs for the plt.savefig function, and additional information for json data
+    json_data = {
+                    'title': graphtitle,
+                    'info': {
+                        'Mean': statistics.mean(shannon_samples),
+                        'Standard deviation': statistics.stdev(shannon_samples)
+                    }
+                }
+
+    return plt, {'bbox_inches':'tight', 'bbox_extra_artists':tuple(legends)}, json_data
+
 
 # ### Helper functions
-
-# # Abstracts the bin properties away from specific library calls enabling lief and pefile usage
-class bin_proxy(object):
-    """Abstract for different binary parsers types in use"""
-    def __init__(self, abs_fpath, lib=None):
-        super(bin_proxy, self).__init__()
-        self.abs_fpath = abs_fpath
-
-        if lib:
-            self.lib = lib
-        else:
-
-            if 'lief' in sys.modules:
-                self.lib = 'lief'
-            elif 'pefile' in sys.modules:
-                self.lib = 'pefile'
-            else:
-                # # We dont have a parser
-                return None, None
-
-        self.bin, self.type = None, None
-        self.__parse_bin()
-
-    class __ParseError(Exception):
-
-        pass
-
-    def __parse_bin(self):
-
-        if self.lib == 'lief':
-            try:
-                self.bin = lief.parse(filepath=self.abs_fpath)
-                if type(self.bin) == lief.PE.Binary:
-                    self.type = 'PE'
-                    log.debug('Parsed with lief as: {}'.format(self.type))
-                else:
-                    self.bin = None
-                    log.debug('File is a currently unsupported format'.format(self.type))
-
-            except lief.bad_file as e:
-                log.warning('Failed to parse with lief: {}'.format(e))
-
-        elif self.lib == 'pefile':
-            try:
-                self.bin = pefile.PE(self.abs_fpath)
-                self.type = 'PE'
-
-                log.debug('Parsed with pefile as: {}'.format(self.type))
-
-            except pefile.PEFormatError as e:
-                log.warning('Failed to parse with pefile: {}'.format(e))
-
-    def get_virtual_ep(self):
-
-        if self.lib == 'lief':
-            return self.bin.optional_header.addressof_entrypoint
-        elif self.lib == 'pefile':
-            return self.bin.OPTIONAL_HEADER.AddressOfEntryPoint
-
-    def get_physical_from_rva(self, rva):
-
-        if self.lib == 'lief':
-            return self.bin.rva_to_offset(rva)
-        elif self.lib == 'pefile':
-            return self.bin.get_physical_by_rva(rva)
-
-    def sections(self):
-
-        index = 0
-        sections = []
-
-        for lib_section in self.bin.sections:
-
-            section = section_proxy(self.lib, lib_section)
-
-            yield index, section
-            index += 1
-# # Part of bin_proxy - abstracts section calls
-class section_proxy(object):
-    """Abstract for different binary parsers types in use"""
-    def __init__(self, lib, lib_section):
-        super(section_proxy, self).__init__()
-        self.lib = lib
-        self.lib_section = lib_section
-
-        if self.lib == 'lief':
-            self.name = lib_section.name
-            self.offset = lib_section.offset
-        elif self.lib == 'pefile':
-            self.name = str(lib_section.Name.rstrip(b'\x00').decode("utf-8"))
-            self.offset = self.lib_section.get_offset_from_rva(self.lib_section.VirtualAddress)
 
 # # Read files as chunks
 def get_chunk(fh, chunksize=8192):
@@ -385,7 +346,12 @@ def get_chunk(fh, chunksize=8192):
 # # Some samples may have a corrupt section name (e.g. 206c0533ce9bf83ecdf904bec2f3532d)
 def safe_section_name(s_name, index):
         if s_name == '' or s_name == None:
-            s_name = 'sect_{:d}'.format(str(index))
+            s_name = 'sect_{:d}'.format(index)
+
+        # # Long sections names upset matplotlib
+        if len(s_name) > 15:
+            s_name = '{}...'.format(s_name[0:12])
+
         return s_name
 
 # # Assign a colour to the section name. Static between samples
@@ -395,14 +361,12 @@ def hash_colour(text):
     np.random.seed(int(name_colour))
     return matplotlib.colors.to_rgba(np.random.rand(3,))
 
-
 # # Calculate entropy given a list
 def shannon_ent(labels, base=256):
     value, counts = np.unique(labels, return_counts=True)
     norm_counts = counts / counts.sum()
     base = e if base is None else base
     return -(norm_counts * np.log(norm_counts)/np.log(base)).sum()
-
 
 
 if __name__ == '__main__':
@@ -441,13 +405,10 @@ if __name__ == '__main__':
     args_dict['fname'] = os.path.basename(args.file)
     args_dict['abs_save_fpath'] = '{}.{}'.format(os.path.basename(args_dict['abs_fpath']), args.format)
 
-    plt, save_kwargs = generate(**args_dict)
+    plt, save_kwargs, json_data = generate(**args_dict)
 
     fig = plt.gcf()
     fig.set_size_inches(*args.figsize, forward=True)
-
-    ax = plt.gca()
-    ax.text(-0.03, -0.15, 'github.com/geekscrapy/binGraph', ha='left', va='top', family='monospace', transform=ax.transAxes)
 
     plt.tight_layout()
 
