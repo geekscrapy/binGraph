@@ -318,7 +318,7 @@ def generate(abs_fpath, fname, blob, chunks=__chunks__, ibytes=__ibytes_dict__, 
     else:
         legends.append(host.legend(loc='upper left', bbox_to_anchor=(1.01, 1), frameon=False))
 
-    graphtitle = kwargs.get('graphtitle', fname)
+    graphtitle = kwargs.get('graphtitle') or fname
 
     if blob:
         host.set_title('Binary entropy (sampled over {chunksize} byte chunks): {graphtitle}{title_gap}'.format(chunksize=chunksize, graphtitle=graphtitle, title_gap=title_gap))
