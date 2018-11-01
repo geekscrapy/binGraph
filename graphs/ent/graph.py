@@ -19,7 +19,7 @@ from __future__ import division
 
 # # Import graph specific libs
 import matplotlib
-matplotlib.use('Agg')
+matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 from matplotlib.ticker import MaxNLocator
@@ -33,9 +33,7 @@ import json
 import sys
 import re
 
-
 import lief
-
 
 # # Python 2/3 fix
 import json
@@ -49,9 +47,9 @@ log = logging.getLogger('graph.ent')
 
 # # Graph defaults
 __chunks__ = 750
-__ibytes__= '[ {"name":"0\'s", "colour": "#15ff04", "bytes": [0]}, {"name":"Exploit", "bytes": [44,144], "colour":"#ff2b01"}, {"name":"Printable ASCII", "colour":"b", "bytes": [32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,71,72,73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88,89,90,91,92,93,94,95,96,97,98,99,100,101,102,103,104,105,106,107,108,109,110,111,112,113,114,115,116,117,118,119,120,121,122,123,124,125,126]} ]'
+__ibytes__= '[ {"name":"Zeros", "colour": "#00ff00", "bytes": [0]}, {"name":"Exploit", "bytes": [44,144], "colour":"#ff2b01"} ]'
 __ibytes_dict__ = json.loads(__ibytes__)
-__entcolour__ = '#ff01d5'
+__entcolour__ = '#ff00ff'
 
 # # Set args in args parse - the given parser is a sub parser
 def args_setup(arg_parser):
@@ -60,7 +58,7 @@ def args_setup(arg_parser):
                     Bytes occurances to add to the graph - used to add extra visability into the type of bytes included in the binary. To disable this option, set the flag without an argument.
                     The "name" value is the name of the bytes for the legend, the "bytes" value is the bytes to count the percentage of per section, the "colour" value maybe a matplotlib colour
                     ( r,g,b etc.), a hex with or without an alpha value, or not defined (a seeded colour is chosen). The easiest way to construct these values is to create a dictionary and convert it using \'print(json.loads(dict))\'''')
-    arg_parser.add_argument('--entcolour', type=str, metavar='#cf3da2ff', default=__entcolour__, help='Colour of the Entropy line')
+    arg_parser.add_argument('--entcolour', type=str, metavar='#ff00ff', default=__entcolour__, help='Colour of the Entropy line')
 
 # # Validate graph specific arguments - Set the defaults here
 class ArgValidationEx(Exception): pass
@@ -114,7 +112,7 @@ def args_validation(args):
 
                 # # Get/set the colour if it exists
                 if not 'colour' in ib.keys():
-                    log.warning('No colour defined for --ibytes byte range: {} {}'.format(ib['name'], ib['bytes']))
+                    log.info('No colour defined for --ibytes byte range: {} {}'.format(ib['name'], ib['bytes']))
                     ibyte['colour'] = matplotlib.colors.to_rgba(hash_colour(ib['name']))
                 else:
                     ibyte['colour'] = matplotlib.colors.to_rgba(ib['colour'])
@@ -174,10 +172,10 @@ def generate(abs_fpath, fname, blob, chunks=__chunks__, ibytes=__ibytes_dict__, 
     fig, host = plt.subplots()
 
     log.debug('Plotting shannon samples')
-    host.plot(np.array(shannon_samples), label='Entropy', c=hash_colour('Entropy'), zorder=1001, linewidth=1.5)
+    host.plot(np.array(shannon_samples), label='Entropy', c=kwargs['entcolour'], zorder=1001, linewidth=1.2)
 
     host.set_ylabel('Entropy\n'.format(chunksize))
-    host.set_xlabel('Raw file offset')
+    host.set_xlabel('File offset')
     host.xaxis.set_major_formatter(ticker.FuncFormatter(lambda x, pos: ('0x{:02X}'.format(int(x * nr_chunksize)))))
     host.xaxis.set_major_locator(MaxNLocator(10))
     plt.xticks(rotation=-10, ha='left')
@@ -189,7 +187,7 @@ def generate(abs_fpath, fname, blob, chunks=__chunks__, ibytes=__ibytes_dict__, 
     if ibytes:
 
         axBytePc = host.twinx()
-        axBytePc.set_ylabel('Occurrence of "interesting" bytes')
+        axBytePc.set_ylabel('Interesting bytes')
         axBytePc.yaxis.set_major_formatter(ticker.FuncFormatter(lambda x, pos: ('{:d}%'.format(int(x)))))
 
         for index, _ in enumerate(ibytes):
@@ -219,7 +217,7 @@ def generate(abs_fpath, fname, blob, chunks=__chunks__, ibytes=__ibytes_dict__, 
 
         except lief.bad_file as e:
             parsedbin = None
-            log.warning('Failed to parse binary format. Not adding file specific info')
+            log.info('Failed to parse binary format. Not adding file specific info')
 
         else:
 
@@ -231,8 +229,8 @@ def generate(abs_fpath, fname, blob, chunks=__chunks__, ibytes=__ibytes_dict__, 
                 phy_ep_pointer = parsedbin.rva_to_offset(parsedbin.optional_header.addressof_entrypoint) / nr_chunksize
                 log.debug('{}: {}'.format('Entrypoint', hex(parsedbin.optional_header.addressof_entrypoint)))
 
-                host.axvline(x=phy_ep_pointer, linestyle=':', c='r', zorder=zorder-1)
-                host.text(x=phy_ep_pointer, y=1.07, s='EP', rotation=45, va='bottom', ha='left')
+                host.axvline(x=phy_ep_pointer, linestyle=':', c='#0000ff', zorder=zorder-1)
+                host.text(x=phy_ep_pointer, y=1.07, s='Entrypoint', color='#0000ff', rotation=45, va='bottom', ha='left')
 
                 longest_section_name = 0
                 end_of_last_section = 0
@@ -246,7 +244,7 @@ def generate(abs_fpath, fname, blob, chunks=__chunks__, ibytes=__ibytes_dict__, 
 
                     log.debug('{}: {}'.format(section_name, hex(section.offset)))
 
-                    host.axvline(x=section_offset, linestyle='--', zorder=zorder)
+                    host.axvline(x=section_offset, linestyle='--', zorder=zorder, c='#000000')
                     host.text(x=section_offset, y=1.07, s=section_name, rotation=45, va='bottom', ha='left')
 
                     # # Get longest section name
@@ -257,7 +255,7 @@ def generate(abs_fpath, fname, blob, chunks=__chunks__, ibytes=__ibytes_dict__, 
                         end_of_last_section = section_offset + section_size
 
                 # # End of final section vline
-                host.axvline(x=end_of_last_section, linestyle='--', zorder=zorder)
+                host.axvline(x=end_of_last_section, linestyle=':', c='b', zorder=zorder)
                 host.text(x=end_of_last_section, y=1.07, s='Overlay', color='b', rotation=45, va='bottom', ha='left')
 
                 # # Eval the space required to show the section names
