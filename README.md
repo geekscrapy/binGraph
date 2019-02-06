@@ -53,7 +53,7 @@ Shows the entropy over certain sized chunked samples of the binary file. The sam
 ```--ibytes``` must be an list of json dictionaries. Dictionaries must contain a ```"name"```, and ```"bytes"``` values. ```"bytes"``` is an array of integers which are interpretted as hex bytes. The optional ```"colour"``` value can be a matplotlib colour (e.g. r, b or hex with/or without alpha), or not defined (in this case a seeded value is used)
 
 ![Binary entropy graph](example-ent.png "Binary entropy graph - from PE executable")
-!MALWARE! Sample from: https://cape[.]contextis[.]com/file/CAPE/9472/ad5a729e7c4047c946601e5533b1dfa3983a0d84da61b743dda1ca3b1c956ec5/
+!MALWARE! Sample from: https://cape.contextis.com/analysis/20194/
 ```
 $ python binGraph.py ent --help
 usage: binGraph.py ent [-h] [-c 750] [--ibytes [{ "name":"0s", "bytes":[0] },
@@ -85,7 +85,7 @@ optional arguments:
 Provides an insight into the occurence of all bytes in the file. Two graphs are overlayed, the red graph shows bytes 0x00 to 0xFF in order. The blue graph shows the same bytes, ordered by count, this shows the overall distribution.
 
 ![Binary byte histogram](example-hist.png "Binary byte histogram")
-!MALWARE! Sample from: https://cape[.]contextis[.]com/file/CAPE/9472/ad5a729e7c4047c946601e5533b1dfa3983a0d84da61b743dda1ca3b1c956ec5/
+!MALWARE! Sample from: https://cape.contextis.com/analysis/20194/
 ```
 $ python binGraph.py hist --help
 usage: binGraph.py hist [-h] [--no_zero] [--width 1] [--no_log] [--no_order]

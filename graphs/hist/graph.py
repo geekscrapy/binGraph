@@ -10,6 +10,7 @@ no_zero bool:   Remove 0x00 from the graph, sometimes this blows other results d
 width int:      Sample width
 g_log bool:     Whether to apply a log scale to occurance axis
 no_order bool:  Remove the ordered histogram - it shows overall distribution
+colours bool:   Colours for the graph - hex values (#ff01d5). First value is the ordered graph
 """
 
 from __future__ import division
@@ -18,7 +19,7 @@ import os
 import sys
 import numpy as np
 import matplotlib
-matplotlib.use('Agg')
+matplotlib.use('TkAgg')
 import matplotlib.ticker as ticker
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator
@@ -33,7 +34,7 @@ __no_zero__ = False
 __width__ = 1
 __g_log__ = True
 __no_order__ = False
-__colours__ = ['#ff01d5', '#01ff2b']
+__colours__ = ['#ff00ff', '#00ff00']
 
 # Set args in args parse
 def args_setup(arg_parser):
@@ -51,7 +52,7 @@ def args_validation(args):
     # # Test to see what matplotlib backend is setup
     backend = matplotlib.get_backend()
     if not backend == 'TkAgg':
-        log.warning('{} matplotlib backend in use. This graph generation was tested with "TkAgg", bugs may lie ahead...'.format(backend))
+        log.warning('{} matplotlib backend in use. This graph generation was tested with "agg", bugs may lie ahead...'.format(backend))
 
     # # Test to see if we should use defaults
     if args.graphtype == 'all':
@@ -122,7 +123,7 @@ def generate(abs_fpath, fname, no_zero=__no_zero__, width=__width__, g_log=__g_l
 
     plt.legend(loc='upper center', ncol=3, bbox_to_anchor=(0.5, 1.07), framealpha=1)
 
-    graphtitle = kwargs.get('graphtitle', fname)
+    graphtitle = kwargs.get('graphtitle') or fname
 
     plt.title('Byte histogram: {}\n'.format(graphtitle))
 
