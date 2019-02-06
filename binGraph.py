@@ -138,7 +138,7 @@ except Exception as e:
 
 # # Main routine - import this and provide a 
 def generate_graphs(args_dict):
-    print(args_dict)
+    log.debug('args_dict = ' + str(args_dict))
     """
         Dictionary of arguments to generate the graphs.
         See individual graphs for possible arguments
