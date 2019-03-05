@@ -129,8 +129,13 @@ def args_validation(args):
 # # Generate the graph
 def generate(abs_fpath, fname, blob, chunks=__chunks__, o_ibytes=__ibytes_dict__, **kwargs):
 
+    if kwargs.get('verbose', False):
+        log.setLevel(logging.DEBUG)
+    else:
+        log.setLevel(logging.INFO)
+
     with open(abs_fpath, 'rb') as fh:
-        log.debug('Opening: "{}"'.format(fname))
+        log.info('Opening: "{}"'.format(abs_fpath))
 
         # # Calculate the overall chunksize 
         fs = os.fstat(fh.fileno()).st_size

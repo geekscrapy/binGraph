@@ -168,7 +168,7 @@ def generate_graphs(args_dict):
           'figsize': (12, 4),
           'dpi': 100,
           'blob': False,
-          'verbose': True,
+          'verbose': False,
           'graphtype': 'ent',
           'chunks': 750,
           'ibytes': [{
@@ -248,7 +248,7 @@ if __name__ == '__main__':
 
     # # Import the defaults
     parser = argparse.ArgumentParser()
-    parser.add_argument('-f', '--file', dest='files', type=str, required=True, nargs='+', metavar='malware.exe', help='Give me a graph of this file. Provide a list of files with the \"@files.txt\" syntax (for example from a `find` command). See - if this is the only argument specified.')
+    parser.add_argument('-f', '--file', dest='files', type=str, required=True, nargs='+', metavar='malware.exe', help='Give me a graph of these files (space separated). Provide a list of files with the \"@files.txt\" syntax (for example output from the `find` command). See - if this is the only argument specified.')
     parser.add_argument('-r', '--recurse', action='store_true', help='If --file is a directory, add files recursively')
     parser.add_argument('-', dest='__dummy', action='store_true', help='*** Required if --file or -f is the only argument given before a graph type is provided (it\'s greedy!). E.g. "binGraph.py --file mal.exe - bin_ent"')
     parser.add_argument('--prefix', type=str, metavar='', help='Add this prefix to the saved filenames') 
@@ -280,14 +280,12 @@ if __name__ == '__main__':
     __files__ = []
     for file in args.files:
         if file.startswith('@'):
-            print(file)
             files = File2Strings(file[1:])
             if files == None:
                 raise Exception('Error reading {}'.format(file))
             __files__ += list(files)
         else:
-            # # Adjust args to retain the list of files
-            __files__.append(find_files(args.files, args.recurse))
+            __files__ += find_files([file], args.recurse)
 
     args.files = __files__
 

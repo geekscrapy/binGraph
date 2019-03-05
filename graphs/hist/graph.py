@@ -71,12 +71,17 @@ def args_validation(args):
 
 def generate(abs_fpath, fname, no_zero=__no_zero__, width=__width__, g_log=__g_log__, no_order=__no_order__, colours=__colours__, **kwargs):
 
+    if kwargs.get('verbose', False):
+        log.setLevel(logging.DEBUG)
+    else:
+        log.setLevel(logging.INFO)
+
     file_array = []
     with open(abs_fpath, 'rb') as fh:
         for x in bytearray(fh.read()):
             file_array.append(x)
 
-    log.debug('Read: "{}", length: {}'.format(fname, len(file_array)))
+    log.info('Read: "{}", length: {}'.format(abs_fpath, len(file_array)))
 
     log.debug('Ignore 0\'s: {}'.format(no_zero))
     no_zero = -int(no_zero)
