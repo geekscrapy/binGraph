@@ -32,6 +32,7 @@ import os
 import json
 import sys
 import re
+import copy
 
 import lief
 
@@ -126,7 +127,7 @@ def args_validation(args):
 
 
 # # Generate the graph
-def generate(abs_fpath, fname, blob, chunks=__chunks__, ibytes=__ibytes_dict__, **kwargs):
+def generate(abs_fpath, fname, blob, chunks=__chunks__, o_ibytes=__ibytes_dict__, **kwargs):
 
     with open(abs_fpath, 'rb') as fh:
         log.debug('Opening: "{}"'.format(fname))
@@ -140,12 +141,12 @@ def generate(abs_fpath, fname, blob, chunks=__chunks__, ibytes=__ibytes_dict__, 
             chunksize = -(-fs // chunks)
             nr_chunksize = fs / chunks
 
+        # Reset ibytes
+        ibytes = copy.deepcopy(o_ibytes)
+
         log.debug('Filesize: {}, Chunksize (rounded): {}, Chunksize: {}, Chunks: {}'.format(fs, chunksize, nr_chunksize, chunks))
         log.debug('Using ibytes: {}'.format(ibytes))
         log.debug('Producing shannon ent with chunksize {}'.format(chunksize))
-
-        for index, _ in enumerate(ibytes):
-            ibytes[index]['percentages'] = []
 
         shannon_samples = []
         for chunk in get_chunk(fh, chunksize=chunksize):
@@ -162,6 +163,9 @@ def generate(abs_fpath, fname, blob, chunks=__chunks__, ibytes=__ibytes_dict__, 
                     occurrence = 0
                     for b in ibytes[index]['bytes']:
                         occurrence += cbytes[b]
+
+                    if not 'percentages' in ibytes[index]:
+                        ibytes[index]['percentages'] = []
 
                     ibytes[index]['percentages'].append((float(occurrence)/float(len(chunk)))*100)
 

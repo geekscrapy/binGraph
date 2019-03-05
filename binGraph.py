@@ -36,6 +36,18 @@ log.setLevel(logging.INFO)
 
 # ### Helper functions
 
+def File2Strings(filename):
+    try:
+        f = open(filename, 'r')
+    except:
+        return None
+    try:
+        return map(lambda line:line.rstrip('\n'), f.readlines())
+    except:
+        return None
+    finally:
+        f.close()
+
 # # Gather files to process - give it a list of paths (files or directories)
 # # and it will return all files in a list
 def find_files(search_paths, recurse):
@@ -236,7 +248,7 @@ if __name__ == '__main__':
 
     # # Import the defaults
     parser = argparse.ArgumentParser()
-    parser.add_argument('-f', '--file', dest='files', type=str, required=True, nargs='+', metavar='malware.exe', help='Give me a graph of this file. See - if this is the only argument specified.')
+    parser.add_argument('-f', '--file', dest='files', type=str, required=True, nargs='+', metavar='malware.exe', help='Give me a graph of this file. Provide a list of files with the \"@files.txt\" syntax (for example from a `find` command). See - if this is the only argument specified.')
     parser.add_argument('-r', '--recurse', action='store_true', help='If --file is a directory, add files recursively')
     parser.add_argument('-', dest='__dummy', action='store_true', help='*** Required if --file or -f is the only argument given before a graph type is provided (it\'s greedy!). E.g. "binGraph.py --file mal.exe - bin_ent"')
     parser.add_argument('--prefix', type=str, metavar='', help='Add this prefix to the saved filenames') 
@@ -262,12 +274,21 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-
     ## # Verify global arguments
 
     # # Get a list of files from the arguments
-    __files__ = find_files(args.files, args.recurse)
-    # # Adjust args to retain the list of files
+    __files__ = []
+    for file in args.files:
+        if file.startswith('@'):
+            print(file)
+            files = File2Strings(file[1:])
+            if files == None:
+                raise Exception('Error reading {}'.format(file))
+            __files__ += list(files)
+        else:
+            # # Adjust args to retain the list of files
+            __files__.append(find_files(args.files, args.recurse))
+
     args.files = __files__
 
     # # Is the save_dir actually a dirctory?
@@ -285,10 +306,6 @@ if __name__ == '__main__':
     # # Allow graph modules to verify if their arguments have been set correctly
     for name, module in __graphtypes__.items():
         module.args_validation(args)
-
-    # # Test --figsize argument
-    print(args.figsize)
-
 
     args_dict = args.__dict__
     generate_graphs(args_dict)

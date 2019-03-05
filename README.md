@@ -25,8 +25,10 @@ positional arguments:
 optional arguments:
   -h, --help            show this help message and exit
   -f malware.exe [malware.exe ...], --file malware.exe [malware.exe ...]
-                        Give me a graph of this file. See - if this is the
-                        only argument specified.
+                        Give me a graph of this file. Provide a list of files
+                        with the "@files.txt" syntax (for example from a
+                        `find` command). See - if this is the only argument
+                        specified.
   -r, --recurse         If --file is a directory, add files recursively
   -                     *** Required if --file or -f is the only argument
                         given before a graph type is provided (it's greedy!).
