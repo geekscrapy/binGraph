@@ -67,7 +67,7 @@ def args_validation(args):
         args.colours[1] = matplotlib.colors.to_rgba(args.colours[1])
     except ValueError as e:
         raise ArgValidationEx('Error parsing --colours: {}'.format(e))
-    
+
 
 def generate(abs_fpath, fname, no_zero=__no_zero__, width=__width__, g_log=__g_log__, no_order=__no_order__, colours=__colours__, **kwargs):
 
@@ -190,5 +190,5 @@ if __name__ == '__main__':
         log.debug('Opening graph interactively')
         plt.show()
     else:
-        plt.savefig(args_dict['abs_save_fpath'], format=args.format, dpi=args.dpi, forward=True, **save_kwargs)
+        plt.savefig(args_dict['abs_save_fpath'], format=args.format, dpi=args.dpi, **save_kwargs)
         log.info('Graph saved to: "{}"'.format(args_dict['abs_save_fpath']))

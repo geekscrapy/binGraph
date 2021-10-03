@@ -72,7 +72,7 @@ def args_validation(args):
 
     # # Test to see if we should use defaults
     if args.graphtype == 'all':
-        args.chunks = __chunks__ 
+        args.chunks = __chunks__
         args.ibytes = __ibytes__
         args.entcolour = __entcolour__
 
@@ -137,7 +137,7 @@ def generate(abs_fpath, fname, blob, chunks=__chunks__, o_ibytes=__ibytes_dict__
     with open(abs_fpath, 'rb') as fh:
         log.info('Opening: "{}"'.format(abs_fpath))
 
-        # # Calculate the overall chunksize 
+        # # Calculate the overall chunksize
         fs = os.fstat(fh.fileno()).st_size
         if chunks > fs:
             chunksize = 1
@@ -433,5 +433,5 @@ if __name__ == '__main__':
         log.debug('Opening graph interactively')
         plt.show()
     else:
-        plt.savefig(args_dict['abs_save_fpath'], format=args.format, dpi=args.dpi, forward=True, **save_kwargs)
+        plt.savefig(args_dict['abs_save_fpath'], format=args.format, dpi=args.dpi, **save_kwargs)
         log.info('Graph saved to: "{}"'.format(args_dict['abs_save_fpath']))
