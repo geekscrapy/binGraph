@@ -257,9 +257,7 @@ def generate_graphs(args_dict):
             plt.cla()
             plt.close()
 
-
-# # Main
-if __name__ == "__main__":
+def main():
 
     # # Import the defaults
     parser = argparse.ArgumentParser()
@@ -357,3 +355,6 @@ if __name__ == "__main__":
         module.args_validation(args)
 
     generate_graphs(args.__dict__)
+
+if __name__ == '__main__':
+    main()
