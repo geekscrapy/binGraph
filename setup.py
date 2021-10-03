@@ -30,7 +30,7 @@ setup(
         ],
     },
     install_requires=[
-        "matplotlib==3.4.2",
+        "matplotlib==3.3.0",
         "numpy==1.21.1",
         "pefile>=2021.9.3",
     ],
