@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='binGraph',
-    version='3.3',
+    version='3.3.1',
     description='CAPE\'s version of binGraph',
     license='GNU Affero General Public License v3.0',
     packages=find_packages(),
@@ -15,8 +15,6 @@ setup(
         "Intended Audience :: Science/Research",
         "Natural Language :: English",
         "Operating System :: POSIX :: Linux",
-        "Programming Language :: Python :: 3.6",
-        "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
@@ -30,8 +28,8 @@ setup(
         ],
     },
     install_requires=[
-        "matplotlib==3.3.0",
-        "numpy==1.19.1",
+        "matplotlib>=3.3.0", # 3.5.2
+        "numpy>=1.19.1", # 1.21.0
         "pefile>=2021.9.3",
     ],
 )
